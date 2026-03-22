@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(req: NextRequest) {
+  // Allow unauthenticated GET for cron (it uses Bearer token internally)
+  if (req.nextUrl.pathname === '/api/cron/monitor' && req.method === 'GET') {
+    return NextResponse.next();
+  }
+
   const basicAuth = req.headers.get('authorization');
 
   if (basicAuth) {

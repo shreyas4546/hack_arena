@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseAdmin } from "@/lib/supabase";
+import { isRegistrationLocked } from "@/lib/registration-lock";
 
 export async function GET() {
   const { data, error } = await supabase
@@ -16,15 +17,20 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { team_name, repo_url } = await request.json();
+    const { team_name, repo_url, category, problem_statement } = await request.json();
 
     if (!team_name || !repo_url) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Basic validation for GitHub URL
+    // Check if registration is locked (file-based, no DB dependency)
+    if (isRegistrationLocked()) {
+      return NextResponse.json({ error: "Registration is currently closed by the admin." }, { status: 403 });
+    }
+
+    // Validate GitHub Repo Format
     if (!repo_url.startsWith("https://github.com/")) {
-      return NextResponse.json({ error: "Invalid GitHub repository URL" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid GitHub repository URL format" }, { status: 400 });
     }
 
     const { data: existingTeam } = await supabase

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trophy, ArrowLeft, Github, CheckCircle2 } from "lucide-react";
+import { Trophy, ArrowLeft, Github, CheckCircle2, Lock } from "lucide-react";
 import Link from "next/link";
 
 export default function RegisterPage() {
@@ -12,6 +12,25 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [registrationLocked, setRegistrationLocked] = useState(false);
+  const [fetchingSettings, setFetchingSettings] = useState(true);
+
+  useEffect(() => {
+    async function fetchSettings() {
+      try {
+        const res = await fetch("/api/registration-lock");
+        if (res.ok) {
+          const data = await res.json();
+          setRegistrationLocked(data.registration_locked);
+        }
+      } catch (err) {
+        console.error("Failed to fetch settings", err);
+      } finally {
+        setFetchingSettings(false);
+      }
+    }
+    fetchSettings();
+  }, []);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,19 +88,36 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* Success State */}
-          {message ? (
+          {/* Success / Locked State */}
+          {fetchingSettings ? (
+            <div className="relative z-10 flex flex-col items-center justify-center py-16">
+              <div className="w-8 h-8 rounded-full border-2 border-slate-700 border-t-cyan-500 animate-spin" />
+            </div>
+          ) : registrationLocked ? (
+            <div className="relative z-10 flex flex-col items-center text-center py-8 space-y-4 animate-in fade-in zoom-in-95 duration-300">
+              <div className="p-4 rounded-full bg-rose-500/10 border border-rose-500/20">
+                <Lock className="w-10 h-10 text-rose-400" />
+              </div>
+              <h2 className="text-xl font-bold text-white">Registration Closed</h2>
+              <p className="text-rose-400/90 text-sm font-medium">The hackathon has begun, and new team registrations are no longer being accepted.</p>
+              <div className="pt-4 w-full">
+                <Button onClick={() => window.location.href = '/'} className="w-full h-12 bg-slate-800 hover:bg-slate-700 text-white font-bold border border-white/10 transition-colors">
+                  Return to Home
+                </Button>
+              </div>
+            </div>
+          ) : message ? (
             <div className="relative z-10 flex flex-col items-center text-center py-8 space-y-4 animate-in fade-in zoom-in-95 duration-300">
               <div className="p-4 rounded-full bg-emerald-500/10 border border-emerald-500/20">
                 <CheckCircle2 className="w-10 h-10 text-emerald-400" />
               </div>
               <h2 className="text-xl font-bold text-white">Registration Complete!</h2>
               <p className="text-emerald-400 text-sm font-medium">{message}</p>
-              <div className="flex gap-3 pt-4">
-                <Button onClick={() => setMessage("")} variant="outline" className="border-white/10 bg-slate-900/50 text-slate-300">
+              <div className="flex gap-3 pt-4 items-center justify-center w-full">
+                <Button onClick={() => setMessage("")} variant="outline" className="border-white/10 bg-slate-900/50 text-slate-300 flex-1 h-11">
                   Register Another
                 </Button>
-                <Button onClick={() => window.location.href = '/submit'} className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold">
+                <Button onClick={() => window.location.href = '/submit'} className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold flex-1 h-11">
                   Go to Submission
                 </Button>
               </div>

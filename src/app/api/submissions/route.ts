@@ -1,12 +1,41 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
+const PROBLEMS = {
+  "FinTech": [
+    "Subscription Tracker & Auto-Cancel System",
+    "Multi-Bank Dashboard Web App"
+  ],
+  "EdTech": [
+    "Collaborative Study Rooms (Virtual)",
+    "Online Coding Assessment Platform"
+  ],
+  "Healthcare": [
+    "Digital Health Record Portal",
+    "Doctor Availability & Teleconsultation Platform"
+  ],
+  "Social Impact": [
+    "Community Issue Reporting System",
+    "Local Farmer-to-Consumer Marketplace"
+  ],
+  "Campus Solutions": [
+    "Placement Preparation Portal",
+    "Unified Campus Portal"
+  ]
+};
+
 export async function POST(request: Request) {
   try {
-    const { team_name, repo_url, deployment_url } = await request.json();
+    const { team_name, repo_url, deployment_url, category, problem_statement } = await request.json();
 
-    if (!team_name || !repo_url || !deployment_url) {
+    if (!team_name || !repo_url || !deployment_url || !category || !problem_statement) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    // 0. Validate Category and Problem Statement against predefined list
+    const validProblems = (PROBLEMS as any)[category];
+    if (!validProblems || !validProblems.includes(problem_statement)) {
+      return NextResponse.json({ error: "Invalid Category or Problem Statement selected." }, { status: 400 });
     }
 
     // 1. Check Settings if Submissions are Locked
@@ -59,7 +88,7 @@ export async function POST(request: Request) {
     // 5. Update Team Submission
     const { error: updateError } = await supabaseAdmin
       .from("teams")
-      .update({ deployment_url })
+      .update({ deployment_url, category, problem_statement })
       .eq("id", team.id);
 
     if (updateError) throw updateError;

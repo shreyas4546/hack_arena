@@ -1,10 +1,33 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Activity, Code, ShieldCheck, Github, AlertCircle, Terminal, Zap, Flag } from "lucide-react";
+import { Activity, Code, ShieldCheck, Github, AlertCircle, Terminal, Zap, Flag, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Home() {
+  const [regLocked, setRegLocked] = useState(false);
+  const [subLocked, setSubLocked] = useState(false);
+  const [fetchingLocks, setFetchingLocks] = useState(true);
+
+  useEffect(() => {
+    async function fetchLocks() {
+      try {
+        const [regRes, subRes] = await Promise.all([
+          fetch("/api/registration-lock"),
+          fetch("/api/settings")
+        ]);
+        if (regRes.ok) setRegLocked((await regRes.json()).registration_locked);
+        if (subRes.ok) setSubLocked((await subRes.json()).submissions_locked);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setFetchingLocks(false);
+      }
+    }
+    fetchLocks();
+  }, []);
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center py-20 px-4 selection:bg-cyan-500/30 overflow-x-hidden font-sans">
       {/* Deep Cyberpunk / Neon Background Overlay */}
@@ -27,12 +50,24 @@ export default function Home() {
         </p>
         
         <div className="flex flex-wrap items-center justify-center gap-4 pt-6">
-          <Button onClick={() => window.location.href = '/register'} size="lg" className="bg-white text-slate-950 hover:bg-slate-200 font-bold px-8 shadow-[0_0_20px_rgba(255,255,255,0.15)] transition-all">
-            Register Team
+          <Button 
+            onClick={() => window.location.href = '/register'} 
+            disabled={regLocked || fetchingLocks}
+            size="lg" 
+            className={cn("font-bold px-8 transition-all", regLocked ? "bg-rose-950/40 text-rose-400 border border-rose-500/20 shadow-none cursor-not-allowed" : "bg-white text-slate-950 hover:bg-slate-200 shadow-[0_0_20px_rgba(255,255,255,0.15)]")}
+          >
+            {regLocked ? <><Lock className="w-4 h-4 mr-2" /> Registration Closed</> : "Register for Event"}
           </Button>
-          <Button onClick={() => window.location.href = '/submit'} size="lg" className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-8 shadow-[0_0_20px_rgba(6,182,212,0.2)] transition-all">
-            Final Submission
+
+          <Button 
+            onClick={() => window.location.href = '/submit'} 
+            disabled={subLocked || fetchingLocks}
+            size="lg" 
+            className={cn("font-bold px-8 transition-all", subLocked ? "bg-rose-950/40 text-rose-400 border border-rose-500/20 shadow-none cursor-not-allowed" : "bg-cyan-600 hover:bg-cyan-500 text-white shadow-[0_0_20px_rgba(6,182,212,0.2)]")}
+          >
+            {subLocked ? <><Lock className="w-4 h-4 mr-2" /> Submissions Closed</> : "Final Submission Portal"}
           </Button>
+
           <Button onClick={() => window.location.href = '/admin'} size="lg" variant="outline" className="border-white/10 bg-slate-900/50 hover:bg-slate-800 text-slate-300">
             Admin Panel
           </Button>
@@ -109,6 +144,14 @@ export default function Home() {
           />
         </div>
       </div>
+
+      {/* Footer Attribution */}
+      <footer className="relative z-10 mt-24 w-full text-center pb-6">
+        <div className="h-px w-full max-w-xs mx-auto bg-gradient-to-r from-transparent via-white/10 to-transparent mb-4" />
+        <p className="text-[11px] text-slate-500/60 font-medium tracking-wide">
+          System Designed &amp; Developed by <span className="text-slate-400/70">Shreyas Ugargol</span>
+        </p>
+      </footer>
 
     </main>
   );
