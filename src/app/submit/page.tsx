@@ -207,7 +207,7 @@ export default function SubmitPage() {
       </div>
 
       <p className="text-center text-xs text-slate-500 font-medium max-w-sm">
-        By submitting, you confirm that this is your team's final deployed application.
+        By submitting, you confirm that this is your team&apos;s final deployed application.
       </p>
     </main>
   );

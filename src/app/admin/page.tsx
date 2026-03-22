@@ -459,7 +459,7 @@ export default function AdminDashboard() {
                           <td className="px-4 py-3 whitespace-nowrap text-center font-bold text-white">{team.score}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-center">
                             {team.status === "disqualified" ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/10 text-rose-400 text-xs font-bold border border-rose-500/20">❌ DQ'd</span>
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/10 text-rose-400 text-xs font-bold border border-rose-500/20">❌ DQ&apos;d</span>
                             ) : (
                               <button onClick={() => setDisqualifyTarget(team)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-950/30 hover:bg-rose-900/50 text-rose-400 hover:text-rose-300 text-xs font-bold border border-rose-500/20 hover:border-rose-500/40 transition-all cursor-pointer">
                                 <Ban className="w-3 h-3" /> Disqualify
