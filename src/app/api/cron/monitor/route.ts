@@ -86,42 +86,35 @@ export async function GET(request: Request) {
           // 1. GitHub Evaluation
           let lastPushDate = await getLatestPushTime(team.repo_url);
           
-          // CRITICAL FIX: If GitHub fetch fails (private repo, deleted repo, or rate limit), 
-          // fallback to the last known timestamp from DB to prevent infinite immunity.
-          if (!lastPushDate && team.last_push) {
-            lastPushDate = new Date(team.last_push);
-          }
-
           let newStatus = team.status;
           let newStrikes = team.strike_count;
           let lastPushTimeStr = team.last_push; 
           let activityScore = 0;
 
-          if (lastPushDate) {
+          const regTime = new Date(team.created_at).getTime();
+          let isValidHackathonPush = false;
+
+          if (lastPushDate && lastPushDate.getTime() > regTime) {
+            isValidHackathonPush = true;
             lastPushTimeStr = lastPushDate.toISOString();
-            const diffMins = (now - lastPushDate.getTime()) / (1000 * 60);
+          }
 
-            // Calculate base activity component (0-100 scale, declines linearly up to 24h)
-            activityScore = Math.max(0, 100 - (diffMins / (24 * 60)) * 100);
+          // If they haven't made a valid push since registering, the 60-min timer starts from their registration time.
+          const referenceTime = isValidHackathonPush ? lastPushDate!.getTime() : regTime;
+          const diffMins = (now - referenceTime) / (1000 * 60);
 
-            if (diffMins <= 60) {
-              newStatus = "active";
-            } else if (diffMins > 60) {
-              // Any gap over 60 mins = warning + potential strike
-              // Only increment strike on first transition from active
-              if (team.status === "active") newStrikes += 1;
-              // Also increment if they were already warning and now exceeded 120 mins
-              if (diffMins > 120 && team.status === "warning") newStrikes += 1;
+          // Calculate base activity component (0-100 scale, declines linearly up to 24h)
+          activityScore = Math.max(0, 100 - (diffMins / (24 * 60)) * 100);
 
-              // Teams are ONLY "inactive" when they've accumulated more than 2 strikes
-              if (newStrikes > 2) {
-                newStatus = "inactive";
-              } else {
-                newStatus = "warning";
-              }
-            }
+          // Stateless Strike Calculation: 1 strike for every full 60 mins missed
+          newStrikes = Math.floor(diffMins / 60);
 
-            // Teams with no pushes at all (newly registered) keep their current status
+          if (newStrikes === 0) {
+            newStatus = "active";
+          } else if (newStrikes <= 2) {
+            newStatus = "warning";
+          } else {
+            newStatus = "inactive";
           }
 
           // 2. Deployment Evaluation (with retry logic)

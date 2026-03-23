@@ -32,6 +32,7 @@ type Team = {
   deployment_status: "live" | "slow" | "down" | "pending";
   response_time: number;
   score: number;
+  created_at: string;
 };
 
 type SortField = "team_name" | "last_push" | "strike_count" | "status" | "score" | "deployment_status";
@@ -243,17 +244,23 @@ export default function AdminDashboard() {
 
   const insights = useMemo(() => {
     if (teams.length === 0) return { mostActive: "—", leastActive: "—", atRisk: 0, recentPushes: 0 };
-    // Only consider teams that have actually pushed code (last_push is not null)
-    const teamsWithPushes = [...teams]
-      .filter((t) => t.status !== "disqualified" && t.last_push)
+    
+    // Only consider teams that have actually pushed code AFTER registering
+    const teamsWithHackathonPushes = [...teams]
+      .filter((t) => {
+        if (t.status === "disqualified" || !t.last_push) return false;
+        // GitHub push must be strictly after registration
+        return new Date(t.last_push).getTime() > new Date(t.created_at).getTime();
+      })
       .sort((a, b) => new Date(b.last_push).getTime() - new Date(a.last_push).getTime());
+      
     return {
-      mostActive: teamsWithPushes[0]?.team_name || "—",
-      leastActive: teamsWithPushes[teamsWithPushes.length - 1]?.team_name || "—",
+      mostActive: teamsWithHackathonPushes[0]?.team_name || "—",
+      leastActive: teamsWithHackathonPushes[teamsWithHackathonPushes.length - 1]?.team_name || "—",
       // At risk: warning or 2+ strikes, but NOT already disqualified
       atRisk: teams.filter((t) => t.status !== "disqualified" && (t.status === "warning" || t.strike_count >= 2)).length,
-      // Only count teams that have actually pushed within 60 mins
-      recentPushes: teams.filter((t) => t.last_push && differenceInMinutes(new Date(), new Date(t.last_push)) < 60).length,
+      // Only count valid hackathon pushes within 60 mins
+      recentPushes: teamsWithHackathonPushes.filter((t) => differenceInMinutes(new Date(), new Date(t.last_push)) < 60).length,
     };
   }, [teams]);
 
@@ -261,11 +268,20 @@ export default function AdminDashboard() {
 
   const commitGroups = useMemo(() => {
     const validTeams = [...teams]
-      .filter((t) => t.status !== "disqualified" && t.last_push)
+      .filter((t) => {
+        if (t.status === "disqualified" || !t.last_push) return false;
+        return new Date(t.last_push).getTime() > new Date(t.created_at).getTime();
+      })
       .map((t) => ({ ...t, diffMinutes: differenceInMinutes(new Date(), new Date(t.last_push)) }));
-    // Teams registered but never pushed — these are NEW, not violators
+      
+    // New Teams = Registered but never pushed, OR pushed before they registered
     const newTeams = [...teams]
-      .filter((t) => t.status !== "disqualified" && !t.last_push);
+      .filter((t) => {
+        if (t.status === "disqualified") return false;
+        if (!t.last_push) return true;
+        return new Date(t.last_push).getTime() <= new Date(t.created_at).getTime();
+      });
+      
     return {
       active: validTeams.filter((t) => t.diffMinutes <= 60).sort((a,b) => a.diffMinutes - b.diffMinutes),
       violators: validTeams.filter((t) => t.diffMinutes > 60).sort((a,b) => b.diffMinutes - a.diffMinutes),
