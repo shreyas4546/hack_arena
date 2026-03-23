@@ -66,6 +66,7 @@ export async function GET(request: Request) {
       inactive: [] as string[],
       disqualified: [] as string[],
       down: [] as string[],
+      action_required: [] as string[],
     };
 
     const now = new Date().getTime();
@@ -116,9 +117,7 @@ export async function GET(request: Request) {
               if (team.status === "active" || team.status === "warning") newStrikes += 1;
             }
 
-            if (newStrikes >= 3) {
-              newStatus = "disqualified";
-            }
+            // Auto-disqualification removed. Teams just stay 'inactive' and accumulate strikes.
           }
 
           // 2. Deployment Evaluation (with retry logic)
@@ -152,6 +151,11 @@ export async function GET(request: Request) {
           else if (newStatus === "disqualified") report.disqualified.push(team.team_name); // newly disqualified this run
 
           if (deployEval.status === "down" && team.deployment_url) report.down.push(team.team_name);
+
+          // Flag teams with 3+ strikes for manual admin disqualification
+          if (newStrikes >= 3 && newStatus !== "disqualified") {
+            report.action_required.push(`${team.team_name} (Strikes: ${newStrikes})`);
+          }
 
           return {
             id: team.id,
@@ -189,7 +193,8 @@ ${formatList(report.inactive)}
 
 **💀 Disqualified**
 ${formatList(report.disqualified)}
-`.trim();
+
+${report.action_required.length > 0 ? `\n🚨 **ADMIN ACTION REQUIRED (Recommend Disqualification)**\n${formatList(report.action_required)}\n` : ''}`.trim();
 
     // Discord Report
     await sendDiscordNotification({
