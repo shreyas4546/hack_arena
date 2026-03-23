@@ -659,12 +659,12 @@ function HackathonClockPanel({ onManualCheck, triggering, lastChecked, timerStat
     }
   };
 
-  if (!now) return <div className="h-16 w-full animate-pulse bg-slate-900/50 rounded-2xl border border-white/5 mb-6"></div>;
-
   const totalDuration = timerState.durationHours || 24;
   const [localDuration, setLocalDuration] = useState(totalDuration.toString());
   
   useEffect(() => { setLocalDuration(totalDuration.toString()); }, [totalDuration]);
+
+  if (!now) return <div className="h-16 w-full animate-pulse bg-slate-900/50 rounded-2xl border border-white/5 mb-6"></div>;
   const elapsedHrs = Math.floor(elapsedMs / (1000 * 60 * 60));
   const elapsedMins = Math.floor((elapsedMs % (1000 * 60 * 60)) / (1000 * 60));
 
