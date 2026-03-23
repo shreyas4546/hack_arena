@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 import { cn } from "@/lib/utils";
 import Preloader from "@/components/Preloader";
+import GlobalTimer from "@/components/GlobalTimer";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -39,6 +40,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Preloader />
+        <GlobalTimer />
         {children}
         <Toaster theme="dark" position="bottom-right" richColors />
       </body>
