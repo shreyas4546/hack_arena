@@ -136,7 +136,9 @@ export default function ParticipantDashboard() {
                 <div>
                   <h4 className="text-sm font-bold text-white">Last Detected Commit</h4>
                   <p className="text-xs text-slate-400 mt-1">
-                    {formatDistanceToNow(new Date(selectedTeam.last_push))} ago
+                    {selectedTeam.last_push 
+                      ? `${formatDistanceToNow(new Date(selectedTeam.last_push))} ago`
+                      : "No commits detected yet"}
                   </p>
                   <a href={selectedTeam.repo_url} target="_blank" rel="noreferrer" className="text-[10px] text-indigo-400 hover:text-indigo-300 hover:underline mt-2 inline-block">View Repository ↗</a>
                 </div>

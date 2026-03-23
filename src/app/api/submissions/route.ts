@@ -69,20 +69,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Repository is not accessible or not public." }, { status: 400 });
     }
 
-    // 4. Validate Deployment URL (HTTP 200)
+    // 4. Validate Deployment URL (lenient - accept redirects, don't block on fetch failure)
     try {
-      // Allow overriding user agent as some hosting providers block standard fetch
       const deployRes = await fetch(deployment_url, { 
         method: 'GET',
+        redirect: 'follow',
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; HackArena/1.0)'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 (compatible; HackArena/1.0)'
         }
       });
-      if (!deployRes.ok) {
-        return NextResponse.json({ error: `Deployment URL returned status ${deployRes.status}. Must be 200 OK.` }, { status: 400 });
+      if (deployRes.status >= 400) {
+        return NextResponse.json({ error: `Deployment URL returned status ${deployRes.status}. Must be a live, accessible URL.` }, { status: 400 });
       }
     } catch (e) {
-      return NextResponse.json({ error: "Failed to connect to Deployment URL." }, { status: 400 });
+      // Don't block submission if fetch fails — CORS, firewalls, or SPAs may cause this.
+      // The cron monitor will verify deployment health periodically.
+      console.warn("Deploy URL fetch failed during submission, allowing anyway:", (e as Error).message);
     }
 
     // 5. Update Team Submission

@@ -33,19 +33,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid GitHub repository URL format" }, { status: 400 });
     }
 
-    const { data: existingTeam } = await supabase
+    // Check if team name already exists
+    const { data: existingByName } = await supabase
       .from("teams")
       .select("id")
-      .or(`team_name.eq.${team_name},repo_url.eq.${repo_url}`)
-      .single();
+      .eq("team_name", team_name)
+      .maybeSingle();
 
-    if (existingTeam) {
+    // Check if repo URL already exists
+    const { data: existingByRepo } = await supabase
+      .from("teams")
+      .select("id")
+      .eq("repo_url", repo_url)
+      .maybeSingle();
+
+    if (existingByName || existingByRepo) {
       return NextResponse.json({ error: "Team name or repository already registered" }, { status: 400 });
     }
 
     const { data, error } = await supabase
       .from("teams")
-      .insert([{ team_name, repo_url, status: "active", strike_count: 0 }])
+      .insert([{ team_name, repo_url, status: "active", strike_count: 0, last_push: null }])
       .select()
       .single();
 

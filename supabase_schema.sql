@@ -13,6 +13,8 @@ create table if not exists public.teams (
   last_push timestamp with time zone default now(),
   status team_status default 'active',
   strike_count integer default 0,
+  category text,
+  problem_statement text,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );

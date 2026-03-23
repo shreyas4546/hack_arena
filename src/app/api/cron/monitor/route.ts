@@ -106,18 +106,22 @@ export async function GET(request: Request) {
 
             if (diffMins <= 60) {
               newStatus = "active";
-              // Optional: If they recover, should we remove strikes? Usually no, strikes are permanent.
-            } else if (diffMins > 60 && diffMins <= 120) {
-              newStatus = "warning";
-              // Only increment strike if they just transitioned into warning from active
+            } else if (diffMins > 60) {
+              // Any gap over 60 mins = warning + potential strike
+              // Only increment strike on first transition from active
               if (team.status === "active") newStrikes += 1;
-            } else if (diffMins > 120) {
-              newStatus = "inactive";
-              // Only increment strike if they just transitioned into inactive from active or warning
-              if (team.status === "active" || team.status === "warning") newStrikes += 1;
+              // Also increment if they were already warning and now exceeded 120 mins
+              if (diffMins > 120 && team.status === "warning") newStrikes += 1;
+
+              // Teams are ONLY "inactive" when they've accumulated more than 2 strikes
+              if (newStrikes > 2) {
+                newStatus = "inactive";
+              } else {
+                newStatus = "warning";
+              }
             }
 
-            // Auto-disqualification removed. Teams just stay 'inactive' and accumulate strikes.
+            // Teams with no pushes at all (newly registered) keep their current status
           }
 
           // 2. Deployment Evaluation (with retry logic)

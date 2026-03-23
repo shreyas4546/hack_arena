@@ -46,6 +46,7 @@ type TimerState = {
 };
 
 function getActivityLevel(team: Team): "high" | "medium" | "low" | "dead" {
+  if (!team.last_push) return "dead"; // No push detected yet
   const mins = differenceInMinutes(new Date(), new Date(team.last_push));
   if (mins < 30) return "high";
   if (mins < 60) return "medium";
@@ -56,12 +57,14 @@ function getActivityLevel(team: Team): "high" | "medium" | "low" | "dead" {
 function generateActivityData(teams: Team[]) {
   const hours = [];
   const now = new Date();
+  // Only count teams that have actually pushed code
+  const teamsWithPushes = teams.filter((t) => t.last_push && t.status !== "disqualified");
   for (let i = 11; i >= 0; i--) {
     const hour = new Date(now.getTime() - i * 60 * 60 * 1000);
     const label = hour.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const activeCount = teams.filter((t) => {
+    const activeCount = teamsWithPushes.filter((t) => {
       const diff = Math.abs(differenceInMinutes(new Date(t.last_push), hour));
-      return diff < 60 && t.status !== "disqualified";
+      return diff < 60;
     }).length;
     const commits = Math.max(0, activeCount * 2 + Math.floor(Math.random() * 3));
     hours.push({ time: label, activeTeams: activeCount, commits });
@@ -230,7 +233,8 @@ export default function AdminDashboard() {
     total: teams.length,
     active: teams.filter((t) => t.status === "active").length,
     warning: teams.filter((t) => t.status === "warning").length,
-    inactive: teams.filter((t) => t.status === "inactive" || t.status === "disqualified").length,
+    inactive: teams.filter((t) => t.status === "inactive").length,
+    disqualified: teams.filter((t) => t.status === "disqualified").length,
   }), [teams]);
 
   const leaderboard = useMemo(() => {
@@ -239,12 +243,17 @@ export default function AdminDashboard() {
 
   const insights = useMemo(() => {
     if (teams.length === 0) return { mostActive: "—", leastActive: "—", atRisk: 0, recentPushes: 0 };
-    const active = [...teams].filter((t) => t.status !== "disqualified").sort((a, b) => new Date(b.last_push).getTime() - new Date(a.last_push).getTime());
+    // Only consider teams that have actually pushed code (last_push is not null)
+    const teamsWithPushes = [...teams]
+      .filter((t) => t.status !== "disqualified" && t.last_push)
+      .sort((a, b) => new Date(b.last_push).getTime() - new Date(a.last_push).getTime());
     return {
-      mostActive: active[0]?.team_name || "—",
-      leastActive: active[active.length - 1]?.team_name || "—",
-      atRisk: teams.filter((t) => t.status === "warning" || t.strike_count >= 2).length,
-      recentPushes: teams.filter((t) => differenceInMinutes(new Date(), new Date(t.last_push)) < 60).length,
+      mostActive: teamsWithPushes[0]?.team_name || "—",
+      leastActive: teamsWithPushes[teamsWithPushes.length - 1]?.team_name || "—",
+      // At risk: warning or 2+ strikes, but NOT already disqualified
+      atRisk: teams.filter((t) => t.status !== "disqualified" && (t.status === "warning" || t.strike_count >= 2)).length,
+      // Only count teams that have actually pushed within 60 mins
+      recentPushes: teams.filter((t) => t.last_push && differenceInMinutes(new Date(), new Date(t.last_push)) < 60).length,
     };
   }, [teams]);
 
@@ -252,11 +261,15 @@ export default function AdminDashboard() {
 
   const commitGroups = useMemo(() => {
     const validTeams = [...teams]
-      .filter((t) => t.status !== "disqualified")
+      .filter((t) => t.status !== "disqualified" && t.last_push)
       .map((t) => ({ ...t, diffMinutes: differenceInMinutes(new Date(), new Date(t.last_push)) }));
+    // Teams registered but never pushed — these are NEW, not violators
+    const newTeams = [...teams]
+      .filter((t) => t.status !== "disqualified" && !t.last_push);
     return {
       active: validTeams.filter((t) => t.diffMinutes <= 60).sort((a,b) => a.diffMinutes - b.diffMinutes),
-      violators: validTeams.filter((t) => t.diffMinutes > 60).sort((a,b) => b.diffMinutes - a.diffMinutes)
+      violators: validTeams.filter((t) => t.diffMinutes > 60).sort((a,b) => b.diffMinutes - a.diffMinutes),
+      newTeams, // Separate category — pending first commit
     };
   }, [teams]);
 
@@ -307,11 +320,12 @@ export default function AdminDashboard() {
         <HackathonClockPanel onManualCheck={handleTriggerCron} triggering={triggering} lastChecked={lastChecked} timerState={timerState} setTimerState={setTimerState} />
 
         {/* ── STATS ── */}
-            <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <section className="grid grid-cols-2 lg:grid-cols-5 gap-3">
               <StatCard title="Total Teams" value={stats.total} loading={loading} icon={Users} glowColor="rgba(255,255,255,0.08)" iconColor="text-slate-200" />
               <StatCard title="Active" value={stats.active} loading={loading} icon={CheckCircle2} glowColor="rgba(34,197,94,0.12)" iconColor="text-emerald-400" />
               <StatCard title="Warning" value={stats.warning} loading={loading} icon={AlertTriangle} glowColor="rgba(234,179,8,0.12)" iconColor="text-amber-400" />
-              <StatCard title="Inactive / DQ" value={stats.inactive} loading={loading} icon={XCircle} glowColor="rgba(239,68,68,0.12)" iconColor="text-rose-400" />
+              <StatCard title="Inactive" value={stats.inactive} loading={loading} icon={XCircle} glowColor="rgba(239,68,68,0.12)" iconColor="text-rose-400" />
+              <StatCard title="Disqualified" value={stats.disqualified} loading={loading} icon={Ban} glowColor="rgba(225,29,72,0.12)" iconColor="text-red-500" />
             </section>
 
             {/* ── INSIGHTS ── */}
@@ -351,7 +365,7 @@ export default function AdminDashboard() {
                         <RankBadge rank={i + 1} />
                         <div className="flex-1 min-w-0 relative z-10">
                           <p className={cn("text-sm font-semibold truncate transition-colors", i === 0 ? "text-amber-200" : "text-slate-200")}>{team.team_name}</p>
-                          <p className="text-[11px] text-slate-500 mt-0.5">{formatDistanceToNow(new Date(team.last_push), { addSuffix: true })}</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">{team.last_push ? formatDistanceToNow(new Date(team.last_push), { addSuffix: true }) : "Registered"}</p>
                         </div>
                         <StatusDot status={team.status} />
                         <span className={cn("text-sm font-bold tabular-nums w-10 text-right relative z-10", team.score >= 8 ? "text-emerald-400" : team.score >= 5 ? "text-amber-400" : "text-rose-400")}>{team.score}</span>
@@ -381,7 +395,7 @@ export default function AdminDashboard() {
             </section>
 
             {/* ── COMMIT STATUS BOARD ── */}
-            <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-8">
+            <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
               {/* LEFT: Committed (Safe) */}
               <div className="bg-slate-900/40 border border-emerald-500/20 rounded-2xl p-4 md:p-5 shadow-2xl backdrop-blur-md relative overflow-hidden flex flex-col h-[350px]">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500/0 via-emerald-400 to-emerald-500/0 opacity-50" />
@@ -404,7 +418,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* RIGHT: Not Committed (Violations) */}
+              {/* MIDDLE: Not Committed (Violations) */}
               <div className="bg-slate-900/40 border border-red-500/20 rounded-2xl p-4 md:p-5 shadow-2xl backdrop-blur-md relative overflow-hidden flex flex-col h-[350px]">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500/0 via-red-500 to-red-500/0 opacity-50" />
                 <div className="flex items-center justify-between mb-4 shrink-0">
@@ -420,11 +434,33 @@ export default function AdminDashboard() {
                     <div key={t.id} className={cn("flex items-center justify-between p-3 rounded-xl border transition-colors group", t.diffMinutes > 120 ? "bg-red-950/40 border-red-500/40 hover:border-red-500/60" : "bg-amber-950/30 border-amber-500/30 hover:border-amber-500/50")}>
                       <span className={cn("text-sm font-bold truncate pr-2 transition-colors", t.diffMinutes > 120 ? "text-red-100 group-hover:text-red-300" : "text-amber-100 group-hover:text-amber-300")}>{t.team_name}</span>
                       <span className={cn("text-[11px] font-mono font-bold whitespace-nowrap px-2 py-1 rounded-md border", t.diffMinutes > 120 ? "text-red-400 bg-red-900/30 border-red-500/30" : "text-amber-400 bg-amber-900/30 border-amber-500/30")}>
-                        {formatDistanceToNow(new Date(t.last_push), { addSuffix: true })}
+                        {t.last_push ? formatDistanceToNow(new Date(t.last_push), { addSuffix: true }) : "No commits yet"}
                       </span>
                     </div>
                   ))}
                   {commitGroups.violators.length === 0 && <div className="h-full flex items-center justify-center"><p className="text-sm text-emerald-500/80 font-medium tracking-wide">All teams are on track!</p></div>}
+                </div>
+              </div>
+
+              {/* RIGHT: New Teams (Pending First Push) */}
+              <div className="bg-slate-900/40 border border-blue-500/20 rounded-2xl p-4 md:p-5 shadow-2xl backdrop-blur-md relative overflow-hidden flex flex-col h-[350px]">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500/0 via-blue-400 to-blue-500/0 opacity-50" />
+                <div className="flex items-center justify-between mb-4 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.5)]" />
+                    <h2 className="text-base font-bold text-blue-400 tracking-wide drop-shadow-[0_0_5px_rgba(96,165,250,0.3)]">Pending First Push</h2>
+                  </div>
+                  <Badge variant="outline" className="bg-blue-950/50 text-blue-300 border-blue-800/50 px-3 font-mono">{commitGroups.newTeams.length}</Badge>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto pr-2 space-y-2.5">
+                  {commitGroups.newTeams.map(t => (
+                    <div key={t.id} className="flex items-center justify-between p-3 rounded-xl bg-blue-950/20 border border-blue-500/10 hover:border-blue-500/30 transition-colors group">
+                      <span className="text-sm font-bold text-blue-100 truncate pr-2 group-hover:text-blue-300 transition-colors">{t.team_name}</span>
+                      <span className="text-[11px] font-mono font-bold text-blue-400/90 whitespace-nowrap bg-blue-950/50 px-2 py-1 rounded-md border border-blue-500/20">Awaiting push</span>
+                    </div>
+                  ))}
+                  {commitGroups.newTeams.length === 0 && <div className="h-full flex items-center justify-center"><p className="text-sm text-slate-500/80 font-medium tracking-wide">No pending teams.</p></div>}
                 </div>
               </div>
             </section>
@@ -487,7 +523,7 @@ export default function AdminDashboard() {
                               </div>
                             ) : <span className="text-slate-600 text-xs italic">Pending</span>}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-slate-400 text-xs group-hover:text-slate-300 transition-colors">{formatDistanceToNow(new Date(team.last_push), { addSuffix: true })}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-slate-400 text-xs group-hover:text-slate-300 transition-colors">{team.last_push ? formatDistanceToNow(new Date(team.last_push), { addSuffix: true }) : <span className="text-slate-600 italic">Awaiting first push</span>}</td>
                           <td className="px-4 py-3 whitespace-nowrap"><ActivityHeat level={getActivityLevel(team)} /></td>
                           <td className="px-4 py-3 whitespace-nowrap"><StatusBadge status={team.status} /></td>
                           <td className="px-4 py-3 whitespace-nowrap text-center"><span className={cn("inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold border transition-colors", team.strike_count === 0 ? "bg-slate-800 text-slate-300 border-white/10" : team.strike_count === 1 ? "bg-amber-500/20 text-amber-400 border-amber-500/30" : team.strike_count === 2 ? "bg-orange-500/20 text-orange-400 border-orange-500/30" : "bg-rose-500/20 text-rose-400 border-rose-500/30")}>{team.strike_count}</span></td>

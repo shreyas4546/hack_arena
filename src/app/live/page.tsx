@@ -73,7 +73,7 @@ export default function LiveProjectorPage() {
 
   const recentActivity = useMemo(() => {
     return [...teams]
-      .filter(t => t.status !== "disqualified")
+      .filter(t => t.status !== "disqualified" && t.last_push)
       .sort((a, b) => new Date(b.last_push).getTime() - new Date(a.last_push).getTime())
       .slice(0, 10);
   }, [teams]);
