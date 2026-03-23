@@ -19,6 +19,13 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "HackArena 2K26 — Code. Compete. Conquer.",
   description: "HackArena 2K26: Real-time monitored hackathon system with automated anti-cheat, live deployment scoring, and strike enforcement.",
+  openGraph: {
+    title: "HackArena 2K26",
+    description: "HackArena 2K26: Real-time monitored hackathon system.",
+    type: "website",
+    url: "https://hack-arena-snowy.vercel.app/",
+    siteName: "HackArena",
+  },
 };
 
 export default function RootLayout({

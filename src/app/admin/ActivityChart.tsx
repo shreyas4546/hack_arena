@@ -59,15 +59,15 @@ export default function ActivityChart({ data, mode, loading }: ActivityChartProp
         <AreaChart data={data}>
           <defs>
             <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.25} />
-              <stop offset="100%" stopColor="#a78bfa" stopOpacity={0} />
+              <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.25} />
+              <stop offset="100%" stopColor="#22d3ee" stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
           <XAxis dataKey="time" tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} width={28} allowDecimals={false} />
-          <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#94a3b8" }} itemStyle={{ color: "#a78bfa" }} />
-          <Area type="monotone" dataKey="activeTeams" stroke="#a78bfa" strokeWidth={2.5} fill="url(#areaGrad)" dot={{ fill: "#a78bfa", r: 3, strokeWidth: 0 }} activeDot={{ r: 6, fill: "#a78bfa", stroke: "#0f172a", strokeWidth: 2 }} animationDuration={600} animationEasing="ease-out" />
+          <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#94a3b8" }} itemStyle={{ color: "#22d3ee" }} />
+          <Area type="monotone" dataKey="activeTeams" stroke="#22d3ee" strokeWidth={2.5} fill="url(#areaGrad)" dot={{ fill: "#22d3ee", r: 3, strokeWidth: 0 }} activeDot={{ r: 6, fill: "#22d3ee", stroke: "#0f172a", strokeWidth: 2 }} animationDuration={600} animationEasing="ease-out" />
         </AreaChart>
       )}
     </ResponsiveContainer>
