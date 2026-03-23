@@ -617,6 +617,13 @@ function HackathonClockPanel({ onManualCheck, triggering, lastChecked, timerStat
   }, [now, timerState]);
 
   const handleTimerAction = async (action: "start" | "pause" | "stop" | "restart" | "update", overrideDuration?: number) => {
+    if (action === "restart") {
+      if (!window.confirm("⚠️ ARE YOU SURE?\n\nYou are about to RESTART the entire hackathon timer. This will reset the global clock to 00:00:00 for everyone.\n\nPress OK only if you mean to do this.")) return;
+    }
+    if (action === "stop") {
+      if (!window.confirm("⚠️ ARE YOU SURE?\n\nYou are about to completely STOP the timer. This is typically only done at the very end of the hackathon.\n\nPress OK to stop the event.")) return;
+    }
+
     let newStatus = action === "update" ? timerState.status : action === "start" ? "running" : action === "pause" ? "paused" : action === "restart" ? "running" : "stopped";
     if (action === "start" && timerState.status === "running") return;
     
