@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 // Evaluation Constants
 const BATCH_SIZE = 5;
-const DEPLOYMENT_TIMEOUT_MS = 12000;
+const DEPLOYMENT_TIMEOUT_MS = 4000; // Reduced to 4 seconds to prevent serverless function timeout
 
 async function pingDeployment(url: string | null): Promise<{ status: "live" | "slow" | "down" | "pending"; time: number }> {
   if (!url) return { status: "pending", time: 0 };
@@ -101,7 +101,8 @@ export async function GET(request: Request) {
 
           // If they haven't made a valid push since registering, the 60-min timer starts from their registration time.
           const referenceTime = isValidHackathonPush ? lastPushDate!.getTime() : regTime;
-          const diffMins = (now - referenceTime) / (1000 * 60);
+          // Math.max(0, ...) strictly prevents negative time differences from clock skew which would cause -1 strikes
+          const diffMins = Math.max(0, (now - referenceTime) / (1000 * 60));
 
           // Calculate base activity component (0-100 scale, declines linearly up to 24h)
           activityScore = Math.max(0, 100 - (diffMins / (24 * 60)) * 100);
