@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export async function POST(request: Request) {
   try {
@@ -16,9 +16,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Score must be a number between 0 and 10" }, { status: 400 });
     }
 
-    const supabase = getSupabaseAdmin();
-    
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from("teams")
       .update({ judge_score: scoreNum })
       .eq("id", team_id);
