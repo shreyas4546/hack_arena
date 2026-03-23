@@ -849,7 +849,7 @@ function HackathonClockPanel({ onManualCheck, triggering, lastChecked, timerStat
       <div className="flex flex-col items-center xl:items-end gap-2 relative z-10 w-full xl:w-auto shrink-0">
         <Button onClick={onManualCheck} disabled={triggering} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-[0_4px_20px_rgba(79,70,229,0.3)] hover:shadow-[0_4px_25px_rgba(79,70,229,0.5)] transition-all border border-indigo-500/50 rounded-xl text-sm h-11 w-full sm:w-auto px-6 group">
           <Activity className={cn("w-4 h-4 mr-2 group-hover:scale-110 transition-transform", triggering && "animate-spin")} />
-          {triggering ? "Checking Systems..." : "👉 Mark Manual Check"}
+          {triggering ? "Calculating..." : "👉 Trigger Engine Evaluation"}
         </Button>
         <span className="text-[11px] text-slate-500 font-medium">Last automated check: {lastChecked.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
       </div>
