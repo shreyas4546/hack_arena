@@ -128,17 +128,8 @@ export default function ParticipantDashboard() {
                     <p className="text-sm font-medium opacity-80 uppercase tracking-widest mt-0.5">Engine Status: {selectedTeam.status}</p>
                   </div>
                 </div>
-                
-                <div className="flex gap-4">
-                  <div className="text-center bg-black/20 px-6 py-3 rounded-xl border border-black/10">
-                    <span className="block text-3xl font-black leading-none">{selectedTeam.strike_count}</span>
-                    <span className="text-[10px] uppercase font-bold opacity-70 tracking-wider">Strikes</span>
-                  </div>
-                  <div className="text-center bg-black/20 px-6 py-3 rounded-xl border border-black/10">
-                    <span className="block text-3xl font-black leading-none">{selectedTeam.score || 0}/10</span>
-                    <span className="text-[10px] uppercase font-bold opacity-70 tracking-wider">Score</span>
-                  </div>
-                </div>
+
+
               </div>
 
               {/* Data Points */}
