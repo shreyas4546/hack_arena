@@ -7,6 +7,11 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow unauthenticated GET for settings (GlobalTimer needs to read the timer status)
+  if (req.nextUrl.pathname.startsWith('/api/settings') && req.method === 'GET') {
+    return NextResponse.next();
+  }
+
   const basicAuth = req.headers.get('authorization');
 
   if (basicAuth) {
