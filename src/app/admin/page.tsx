@@ -42,6 +42,7 @@ type TimerState = {
   startTime: Date;
   accumulatedMs: number;
   durationHours: number;
+  announcement: string | null;
 };
 
 function getActivityLevel(team: Team): "high" | "medium" | "low" | "dead" {
@@ -82,7 +83,7 @@ export default function AdminDashboard() {
   const [regLocking, setRegLocking] = useState(false);
   const [lastChecked, setLastChecked] = useState<Date>(new Date());
   const [graphMode, setGraphMode] = useState<"commits" | "activeTeams">("activeTeams");
-  const [timerState, setTimerState] = useState<TimerState>({ status: "stopped", startTime: new Date(), accumulatedMs: 0, durationHours: 24 });
+  const [timerState, setTimerState] = useState<TimerState>({ status: "stopped", startTime: new Date(), accumulatedMs: 0, durationHours: 24, announcement: null });
 
   // Disqualification modal state
   const [disqualifyTarget, setDisqualifyTarget] = useState<Team | null>(null);
@@ -100,7 +101,8 @@ export default function AdminDashboard() {
           status: settings.timer_status || "stopped",
           startTime: settings.timer_start_time ? new Date(settings.timer_start_time) : new Date(),
           accumulatedMs: Number(settings.timer_accumulated_ms) || 0,
-          durationHours: Number(settings.timer_duration_hours) || 24
+          durationHours: Number(settings.timer_duration_hours) || 24,
+          announcement: settings.global_announcement || null
         });
       }
       if (regLockRes.ok) {
@@ -684,7 +686,7 @@ function HackathonClockPanel({ onManualCheck, triggering, lastChecked, timerStat
       body.timer_duration_hours = overrideDuration;
     }
 
-    setTimerState({ status: newStatus as any, startTime: newStartTime, accumulatedMs: newAccumulated, durationHours: overrideDuration ?? timerState.durationHours });
+    setTimerState({ status: newStatus as any, startTime: newStartTime, accumulatedMs: newAccumulated, durationHours: overrideDuration ?? timerState.durationHours, announcement: timerState.announcement });
     if (action === "stop" || action === "restart") setElapsedMs(0);
 
     const toastId = toast.loading(action === "update" ? "Updating duration..." : `${action === 'start' ? 'Starting' : action === 'restart' ? 'Restarting' : action === 'pause' ? 'Pausing' : 'Stopping'} timer...`);
@@ -769,6 +771,26 @@ function HackathonClockPanel({ onManualCheck, triggering, lastChecked, timerStat
                {timerState.status === 'stopped' ? "--" : minsUntilNext < 0 ? "Overdue!" : `${minsUntilNext}m ${secsUntilNext.toString().padStart(2, '0')}s`}
             </span>
          </div>
+      </div>
+
+      {/* Global Announcement */}
+      <div className="flex flex-col items-start gap-2 relative z-10 w-full xl:w-auto bg-slate-900/50 border border-white/5 p-3 rounded-xl min-w-[280px]">
+        <span className="text-[10px] uppercase tracking-widest font-semibold flex items-center gap-1.5 text-rose-400">Global Announcement Ticker</span>
+        <div className="flex gap-2 w-full">
+           <Input placeholder="Type alert (or leave blank to clear)" id="announcementInput" defaultValue={timerState?.announcement || ""} className="h-8 text-xs bg-slate-950 border-white/10 text-white placeholder:text-slate-600" />
+           <Button className="h-8 bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 font-bold transition-colors" onClick={async () => {
+              const val = (document.getElementById('announcementInput') as HTMLInputElement).value;
+              const toastId = toast.loading("Pushing announcement...");
+              try {
+                const res = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ global_announcement: val }) });
+                if (!res.ok) throw new Error("Failed");
+                toast.success(val ? "Announcement live!" : "Announcement cleared!", { id: toastId });
+                setTimerState({ ...timerState, announcement: val });
+              } catch (e) {
+                toast.error("Error setting announcement. Column might be missing.", { id: toastId });
+              }
+           }}>Push</Button>
+        </div>
       </div>
 
       {/* Manual Check */}

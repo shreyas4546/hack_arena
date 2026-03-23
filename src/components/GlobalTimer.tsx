@@ -10,6 +10,7 @@ type TimerState = {
   startTime: Date;
   accumulatedMs: number;
   durationHours: number;
+  announcement: string | null;
 };
 
 export default function GlobalTimer() {
@@ -30,6 +31,7 @@ export default function GlobalTimer() {
             startTime: settings.timer_start_time ? new Date(settings.timer_start_time) : new Date(),
             accumulatedMs: Number(settings.timer_accumulated_ms) || 0,
             durationHours: Number(settings.timer_duration_hours) || 24,
+            announcement: settings.global_announcement || null,
           });
         }
       } catch (e) {
@@ -73,13 +75,25 @@ export default function GlobalTimer() {
   const isLowTime = remainingMs < 60 * 60 * 1000; // less than 1 hour
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 duration-500 pointer-events-none">
-      <div className={cn(
-        "flex items-center gap-3 px-5 py-2.5 rounded-2xl border backdrop-blur-xl shadow-2xl transition-all duration-500",
-        isLowTime 
-          ? "bg-rose-950/80 border-rose-500/50 shadow-[0_0_30px_rgba(244,63,94,0.3)]" 
-          : "bg-slate-900/80 border-cyan-500/30 shadow-[0_0_30px_rgba(6,182,212,0.15)]"
-      )}>
+    <>
+      <style>{`
+        @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+        .animate-marquee { animation: marquee 18s linear infinite; }
+      `}</style>
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 duration-500 pointer-events-none w-[90%] md:w-auto max-w-sm md:max-w-none flex flex-col items-center gap-2">
+        
+        {timerState.announcement && (
+          <div className="w-full max-w-md bg-rose-600/90 border border-rose-500/50 text-white font-bold text-[11px] uppercase tracking-widest py-1.5 px-4 rounded-full overflow-hidden flex whitespace-nowrap shadow-[0_0_20px_rgba(225,29,72,0.4)] backdrop-blur-md">
+            <div className="animate-marquee inline-block">{timerState.announcement}</div>
+          </div>
+        )}
+
+        <div className={cn(
+          "flex items-center gap-3 px-5 py-2.5 rounded-2xl border backdrop-blur-xl shadow-2xl transition-all duration-500",
+          isLowTime 
+            ? "bg-rose-950/80 border-rose-500/50 shadow-[0_0_30px_rgba(244,63,94,0.3)]" 
+            : "bg-slate-900/80 border-cyan-500/30 shadow-[0_0_30px_rgba(6,182,212,0.15)]"
+        )}>
         <div className={cn("p-1.5 rounded-full", isLowTime ? "bg-rose-500/20" : "bg-cyan-500/20")}>
           <Timer className={cn("w-4 h-4", isLowTime ? "text-rose-400 animate-pulse" : "text-cyan-400")} />
         </div>
@@ -98,5 +112,6 @@ export default function GlobalTimer() {
         </div>
       </div>
     </div>
+    </>
   );
 }

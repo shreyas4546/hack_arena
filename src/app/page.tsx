@@ -77,6 +77,15 @@ export default function Home() {
             <ShieldCheck className="w-4 h-4 mr-2" /> Test Repo Sync
           </Button>
 
+          <Button 
+            onClick={() => window.location.href = '/status'} 
+            size="lg" 
+            variant="outline" 
+            className="border-indigo-500/30 text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 hover:text-indigo-300 font-bold transition-all px-8 shadow-[0_0_15px_rgba(99,102,241,0.1)]"
+          >
+            <Activity className="w-4 h-4 mr-2" /> Team Dashboard
+          </Button>
+
           <Button onClick={() => window.location.href = '/admin'} size="lg" variant="outline" className="border-white/10 bg-slate-900/50 hover:bg-slate-800 text-slate-300">
             Admin Panel
           </Button>
