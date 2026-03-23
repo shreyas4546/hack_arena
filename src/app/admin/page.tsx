@@ -9,7 +9,7 @@ import {
   Search, RefreshCw, Lock, Unlock, Users,
   ExternalLink, Github, Activity, ArrowUpDown, Clock,
   Gavel, ChevronLeft, ChevronRight, Play, Layers, Trophy,
-  Flame, Zap, Crown, Medal, Award, BarChart3, Timer, Pause, Square, Ban
+  Flame, Zap, Crown, Medal, Award, BarChart3, Timer, Pause, Square, Ban, Download
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -177,6 +177,32 @@ export default function AdminDashboard() {
     finally { setRegLocking(false); }
   };
 
+  const handleExportCSV = () => {
+    if (!teams || teams.length === 0) return;
+    
+    const headers = ["Team Name", "Status", "Score", "Strikes", "Repo URL", "Deploy URL", "Last Push"];
+    const rows = teams.map(t => [
+      `"${t.team_name.replace(/"/g, '""')}"`,
+      t.status,
+      t.score || 0,
+      t.strike_count,
+      `"${t.repo_url}"`,
+      `"${t.deployment_url || ''}"`,
+      `"${t.last_push || ''}"`
+    ]);
+    
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `hackarena_teams_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Database exported to CSV!");
+  };
+
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     else { setSortField(field); setSortOrder("asc"); }
@@ -256,6 +282,10 @@ export default function AdminDashboard() {
             <Button onClick={() => window.location.href = "/admin/projects"} variant="outline" className="bg-slate-900/50 border-white/10 text-slate-300 hover:bg-indigo-900/40 hover:text-indigo-300 hover:border-indigo-500/50 transition-all rounded-xl text-xs h-9"><Layers className="w-3.5 h-3.5 mr-1.5" />Gallery</Button>
             <Button onClick={() => window.location.href = "/admin/submissions"} variant="outline" className="bg-slate-900/50 border-white/10 text-slate-300 hover:bg-amber-900/30 hover:text-amber-300 hover:border-amber-500/50 transition-all rounded-xl text-xs h-9"><Trophy className="w-3.5 h-3.5 mr-1.5" />Submissions</Button>
             <Link href="/admin/judging" className="inline-flex items-center justify-center whitespace-nowrap bg-slate-900/50 border border-white/10 text-slate-300 hover:bg-emerald-900/30 hover:text-emerald-300 hover:border-emerald-500/50 transition-all rounded-xl text-xs h-9 px-4 font-medium"><Gavel className="w-3.5 h-3.5 mr-1.5" />Final Eval</Link>
+            
+            <span className="w-px h-6 bg-white/10 mx-1"></span>
+
+            <Button onClick={handleExportCSV} variant="outline" className="bg-slate-900/50 border-white/10 text-slate-300 hover:bg-blue-900/30 hover:text-blue-300 hover:border-blue-500/50 transition-all rounded-xl text-xs h-9"><Download className="w-3.5 h-3.5 mr-1.5" />Export CSV</Button>
             
             {/* Registration Lock Toggle */}
             <Button onClick={handleToggleRegLock} disabled={regLocking || loading} variant="outline" className={cn("border-white/10 bg-slate-900/50 transition-all rounded-xl text-xs h-9", registrationLocked ? "text-red-400 border-red-900/30" : "text-slate-300 border-white/10")}>

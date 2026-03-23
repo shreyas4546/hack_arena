@@ -68,6 +68,15 @@ export default function Home() {
             {subLocked ? <><Lock className="w-4 h-4 mr-2" /> Submissions Closed</> : "Final Submission Portal"}
           </Button>
 
+          <Button 
+            onClick={() => window.location.href = '/verify'} 
+            size="lg" 
+            variant="outline" 
+            className="border-emerald-500/30 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 hover:text-emerald-300 font-bold transition-all px-8 shadow-[0_0_15px_rgba(52,211,153,0.1)]"
+          >
+            <ShieldCheck className="w-4 h-4 mr-2" /> Test Repo Sync
+          </Button>
+
           <Button onClick={() => window.location.href = '/admin'} size="lg" variant="outline" className="border-white/10 bg-slate-900/50 hover:bg-slate-800 text-slate-300">
             Admin Panel
           </Button>
