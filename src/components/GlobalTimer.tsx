@@ -77,17 +77,27 @@ export default function GlobalTimer() {
   return (
     <>
       <style>{`
-        @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
-        .animate-marquee { animation: marquee 18s linear infinite; }
+        @keyframes marquee { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }
+        .animate-marquee { display: inline-block; animation: marquee 25s linear infinite; }
       `}</style>
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 duration-500 pointer-events-none w-[90%] md:w-auto max-w-sm md:max-w-none flex flex-col items-center gap-2">
-        
-        {timerState.announcement && (
-          <div className="w-full max-w-md bg-rose-600/90 border border-rose-500/50 text-white font-bold text-[11px] uppercase tracking-widest py-1.5 px-4 rounded-full overflow-hidden flex whitespace-nowrap shadow-[0_0_20px_rgba(225,29,72,0.4)] backdrop-blur-md">
-            <div className="animate-marquee inline-block">{timerState.announcement}</div>
+      
+      {/* 🚨 FULL-WIDTH BOTTOM TICKER 🚨 */}
+      {timerState.announcement && (
+        <div className="fixed bottom-0 left-0 right-0 z-[100] h-10 bg-rose-600/95 backdrop-blur-md border-t border-rose-400/50 shadow-[0_-10px_40px_rgba(225,29,72,0.4)] flex items-center overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-rose-600 to-transparent z-10 pointer-events-none" />
+          
+          <div className="animate-marquee whitespace-nowrap text-white font-black text-[13px] uppercase tracking-[0.2em] px-4 py-1 flex items-center">
+            <span className="bg-white text-rose-600 px-2 py-0.5 rounded-sm mr-4 tracking-black drop-shadow-md">LIVE ALERT</span> 
+            {timerState.announcement}
           </div>
-        )}
 
+          <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-rose-600 to-transparent z-10 pointer-events-none" />
+        </div>
+      )}
+
+      {/* ⏱️ FLOATING TOP TIMER ⏱️ */}
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 duration-500 pointer-events-none flex flex-col items-center gap-2">
+        
         <div className={cn(
           "flex items-center gap-3 px-5 py-2.5 rounded-2xl border backdrop-blur-xl shadow-2xl transition-all duration-500",
           isLowTime 
