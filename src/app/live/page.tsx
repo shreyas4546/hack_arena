@@ -157,7 +157,7 @@ export default function LiveProjectorPage() {
                   <span className="text-4xl font-black opacity-20 absolute -top-2 right-2">#{idx + 1}</span>
                   <Activity className={cn("w-8 h-8", idx === 0 ? "text-amber-400" : idx === 1 ? "text-slate-300" : idx === 2 ? "text-orange-400" : "text-cyan-500")} />
                   <h3 className="font-bold text-lg truncate w-full px-2" title={team.team_name}>{team.team_name}</h3>
-                  <div className="px-3 py-1 rounded-full bg-slate-950/50 text-sm font-black tracking-widest">{team.score || 0} PTS</div>
+                  <div className="px-3 py-1 rounded-full bg-slate-950/50 text-sm font-black tracking-widest">{team.score || 0}/10</div>
                 </div>
               ))}
             </div>

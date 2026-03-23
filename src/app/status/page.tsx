@@ -124,7 +124,7 @@ export default function ParticipantDashboard() {
                     <span className="text-[10px] uppercase font-bold opacity-70 tracking-wider">Strikes</span>
                   </div>
                   <div className="text-center bg-slate-950/30 px-6 py-3 rounded-lg border border-black/10">
-                    <span className="block text-3xl font-black leading-none">{selectedTeam.score || 0}</span>
+                    <span className="block text-3xl font-black leading-none">{selectedTeam.score || 0}/10</span>
                     <span className="text-[10px] uppercase font-bold opacity-70 tracking-wider">Score</span>
                   </div>
                 </div>

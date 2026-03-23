@@ -137,12 +137,9 @@ export async function GET(request: Request) {
           else if (newStrikes === 1) stabilityScore = 50;
           else if (newStrikes === 2) stabilityScore = 20;
 
-          // 4. Final Final Calculation
-          const finalScore = Math.round(
-            (activityScore * 0.4) + 
-            (deploymentScore * 0.4) + 
-            (stabilityScore * 0.2)
-          );
+          // 4. Final Score Calculation (normalize to 0-10 scale)
+          const rawScore = (activityScore * 0.4) + (deploymentScore * 0.4) + (stabilityScore * 0.2);
+          const finalScore = Math.round((rawScore / 10) * 10) / 10; // 0-10 with 1 decimal
 
           // Populating report with all evaluated active/warning/inactive teams
           if (newStatus === "active") report.active.push(team.team_name);

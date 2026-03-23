@@ -328,7 +328,7 @@ export default function AdminDashboard() {
               <div className="lg:col-span-2 rounded-2xl bg-slate-900/40 border border-white/5 backdrop-blur-md overflow-hidden flex flex-col">
                 <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between shrink-0">
                   <h2 className="text-sm font-bold text-white flex items-center gap-2"><Crown className="w-4 h-4 text-amber-400" /> Leaderboard</h2>
-                  <span className="text-[10px] text-slate-500 uppercase tracking-widest font-medium">Score</span>
+                  <span className="text-[10px] text-slate-500 uppercase tracking-widest font-medium">Score /10</span>
                 </div>
                 <div className="divide-y divide-white/[0.03] overflow-y-auto flex-1 max-h-[380px] custom-scrollbar">
                   {loading ? (
@@ -354,7 +354,7 @@ export default function AdminDashboard() {
                           <p className="text-[11px] text-slate-500 mt-0.5">{formatDistanceToNow(new Date(team.last_push), { addSuffix: true })}</p>
                         </div>
                         <StatusDot status={team.status} />
-                        <span className={cn("text-sm font-bold tabular-nums w-10 text-right relative z-10", team.score >= 80 ? "text-emerald-400" : team.score >= 50 ? "text-amber-400" : "text-rose-400")}>{team.score}</span>
+                        <span className={cn("text-sm font-bold tabular-nums w-10 text-right relative z-10", team.score >= 8 ? "text-emerald-400" : team.score >= 5 ? "text-amber-400" : "text-rose-400")}>{team.score}</span>
                       </div>
                     ))
                   )}
