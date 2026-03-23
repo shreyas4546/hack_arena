@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { supabase, supabaseAdmin } from "@/lib/supabase";
-import { isRegistrationLocked } from "@/lib/registration-lock";
 
 export async function GET() {
   const { data, error } = await supabase
@@ -23,8 +22,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Check if registration is locked (file-based, no DB dependency)
-    if (isRegistrationLocked()) {
+    // Check if registration is locked
+    const { data: settings } = await supabaseAdmin.from("settings").select("registration_locked").single();
+    if (settings?.registration_locked) {
       return NextResponse.json({ error: "Registration is currently closed by the admin." }, { status: 403 });
     }
 

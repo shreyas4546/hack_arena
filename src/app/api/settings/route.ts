@@ -12,6 +12,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const updateData: any = {};
     if (body.submissions_locked !== undefined) updateData.submissions_locked = body.submissions_locked;
+    if (body.registration_locked !== undefined) updateData.registration_locked = body.registration_locked;
     if (body.timer_status !== undefined) updateData.timer_status = body.timer_status;
     if (body.timer_start_time !== undefined) updateData.timer_start_time = body.timer_start_time;
     if (body.timer_accumulated_ms !== undefined) updateData.timer_accumulated_ms = body.timer_accumulated_ms;
