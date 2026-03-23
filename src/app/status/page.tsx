@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Activity, ShieldAlert, ArrowLeft, Loader2, CheckCircle2, AlertTriangle, XCircle, Github, HeartPulse } from "lucide-react";
 import Link from "next/link";
@@ -66,35 +67,42 @@ export default function ParticipantDashboard() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col items-center py-20 px-4 selection:bg-indigo-500/30">
-      <div className="fixed inset-0 z-0 pointer-events-none bg-[radial-gradient(circle_at_50%_0%,rgba(99,102,241,0.08),transparent_50%)]" />
+    <main className="min-h-screen bg-[#0a0a0a] flex flex-col items-center py-20 px-4 selection:bg-orange-500/30 font-sans relative">
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(251,146,60,0.08),transparent_50%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:60px_60px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_60%,transparent_100%)]" />
+      </div>
 
-      <div className="w-full max-w-3xl relative z-10 space-y-8">
-        <Link href="/" className="inline-flex items-center text-sm font-medium text-slate-400 hover:text-white transition-colors mb-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-3xl relative z-10 space-y-8"
+      >
+        <Link href="/" className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-orange-400 transition-colors mb-4">
           <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
         </Link>
 
         <div className="text-center space-y-4">
-          <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white drop-shadow-sm">Participant Dashboard</h1>
-          <p className="text-slate-400 max-w-xl mx-auto">
+          <h1 className="text-4xl md:text-6xl font-black tracking-tight bg-gradient-to-b from-white to-orange-200/60 bg-clip-text text-transparent">Participant Dashboard</h1>
+          <p className="text-slate-500 max-w-xl mx-auto font-medium">
             Check your team&apos;s real-time engine evaluation, including activity score, accumulated strikes, and current standing.
           </p>
         </div>
 
-        <div className="bg-slate-900/40 border border-white/5 rounded-2xl p-6 backdrop-blur-xl shadow-2xl space-y-8">
+        <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-6 backdrop-blur-xl shadow-2xl space-y-8">
           
           <div className="space-y-3">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select Your Team</label>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Select Your Team</label>
             {loading ? (
-              <div className="h-11 bg-slate-800/50 animate-pulse rounded-md w-full border border-white/5" />
+              <div className="h-11 bg-white/[0.03] animate-pulse rounded-md w-full border border-white/[0.06]" />
             ) : (
               <Select onValueChange={setSelectedTeamId} value={selectedTeamId}>
-                <SelectTrigger className="w-full h-12 bg-slate-950 border-white/10 text-white font-medium focus:ring-indigo-500/50">
+                <SelectTrigger className="w-full h-12 bg-white/[0.03] border-white/[0.08] text-white font-medium focus:ring-orange-500/50">
                   <SelectValue placeholder="Select a registered team..." />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-white/10 text-slate-200">
+                <SelectContent className="bg-[#0a0a0a] border-white/10 text-slate-200">
                   {teams.map(team => (
-                    <SelectItem key={team.id} value={team.id} className="focus:bg-indigo-500/20 focus:text-white">
+                    <SelectItem key={team.id} value={team.id} className="focus:bg-orange-500/20 focus:text-white">
                       {team.team_name}
                     </SelectItem>
                   ))}
@@ -104,26 +112,29 @@ export default function ParticipantDashboard() {
           </div>
 
           {selectedTeam && (
-            <div className="grid md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              
+            <motion.div
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="grid md:grid-cols-2 gap-4"
+            >
               {/* Primary Status Card */}
-              <div className={cn("col-span-1 md:col-span-2 p-6 rounded-xl border flex flex-col sm:flex-row items-center justify-between gap-6", getStatusColor(selectedTeam.status))}>
+              <div className={cn("col-span-1 md:col-span-2 p-6 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-6", getStatusColor(selectedTeam.status))}>
                 <div className="flex items-center gap-4">
-                  <div className="p-3 bg-slate-950/20 rounded-full shadow-inner">
+                  <div className="p-3 bg-black/20 rounded-full">
                     {getStatusIcon(selectedTeam.status)}
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold tracking-tight">{selectedTeam.team_name}</h2>
+                    <h2 className="text-2xl font-black tracking-tight">{selectedTeam.team_name}</h2>
                     <p className="text-sm font-medium opacity-80 uppercase tracking-widest mt-0.5">Engine Status: {selectedTeam.status}</p>
                   </div>
                 </div>
                 
                 <div className="flex gap-4">
-                  <div className="text-center bg-slate-950/30 px-6 py-3 rounded-lg border border-black/10">
+                  <div className="text-center bg-black/20 px-6 py-3 rounded-xl border border-black/10">
                     <span className="block text-3xl font-black leading-none">{selectedTeam.strike_count}</span>
                     <span className="text-[10px] uppercase font-bold opacity-70 tracking-wider">Strikes</span>
                   </div>
-                  <div className="text-center bg-slate-950/30 px-6 py-3 rounded-lg border border-black/10">
+                  <div className="text-center bg-black/20 px-6 py-3 rounded-xl border border-black/10">
                     <span className="block text-3xl font-black leading-none">{selectedTeam.score || 0}/10</span>
                     <span className="text-[10px] uppercase font-bold opacity-70 tracking-wider">Score</span>
                   </div>
@@ -131,39 +142,39 @@ export default function ParticipantDashboard() {
               </div>
 
               {/* Data Points */}
-              <div className="bg-slate-950/50 border border-white/5 p-5 rounded-xl flex items-start gap-3">
-                <Github className="w-5 h-5 text-slate-400 shrink-0" />
+              <div className="bg-white/[0.03] border border-white/[0.06] p-5 rounded-2xl flex items-start gap-3">
+                <Github className="w-5 h-5 text-slate-500 shrink-0" />
                 <div>
                   <h4 className="text-sm font-bold text-white">Last Detected Commit</h4>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-slate-500 mt-1">
                     {selectedTeam.last_push 
                       ? `${formatDistanceToNow(new Date(selectedTeam.last_push))} ago`
                       : "No commits detected yet"}
                   </p>
-                  <a href={selectedTeam.repo_url} target="_blank" rel="noreferrer" className="text-[10px] text-indigo-400 hover:text-indigo-300 hover:underline mt-2 inline-block">View Repository ↗</a>
+                  <a href={selectedTeam.repo_url} target="_blank" rel="noreferrer" className="text-[10px] text-orange-400 hover:text-orange-300 hover:underline mt-2 inline-block">View Repository ↗</a>
                 </div>
               </div>
 
-              <div className="bg-slate-950/50 border border-white/5 p-5 rounded-xl flex items-start gap-3">
+              <div className="bg-white/[0.03] border border-white/[0.06] p-5 rounded-2xl flex items-start gap-3">
                 <HeartPulse className={cn("w-5 h-5 shrink-0", selectedTeam.deployment_status === 'live' ? 'text-emerald-400' : selectedTeam.deployment_status === 'slow' ? 'text-amber-400' : 'text-slate-500')} />
                 <div>
                   <h4 className="text-sm font-bold text-white">Deployment Health</h4>
                   {selectedTeam.deployment_url ? (
                     <>
-                      <p className="text-xs text-slate-400 mt-1 capitalize">{selectedTeam.deployment_status} • {selectedTeam.response_time}ms ping</p>
-                      <a href={selectedTeam.deployment_url} target="_blank" rel="noreferrer" className="text-[10px] text-indigo-400 hover:text-indigo-300 hover:underline mt-2 inline-block">Test Live Link ↗</a>
+                      <p className="text-xs text-slate-500 mt-1 capitalize">{selectedTeam.deployment_status} • {selectedTeam.response_time}ms ping</p>
+                      <a href={selectedTeam.deployment_url} target="_blank" rel="noreferrer" className="text-[10px] text-orange-400 hover:text-orange-300 hover:underline mt-2 inline-block">Test Live Link ↗</a>
                     </>
                   ) : (
-                    <p className="text-xs text-slate-500 mt-1">No deployment URL submitted yet.</p>
+                    <p className="text-xs text-slate-600 mt-1">No deployment URL submitted yet.</p>
                   )}
                 </div>
               </div>
 
-            </div>
+            </motion.div>
           )}
 
         </div>
-      </div>
+      </motion.div>
     </main>
   );
 }
