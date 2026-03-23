@@ -135,13 +135,13 @@ export default function Home() {
           <RuleCard 
             icon={<Zap className="w-8 h-8 text-amber-400" />}
             title="2. The Strike System"
-            desc="The master system scans your repository every hour. If no new commits are detected within 120 minutes, your team receives an automated inactivity Strike."
+            desc="The master system assigns 1 inactivity strike for every 60 full minutes without a GitHub push. See the detailed breakdown below."
             glow="rgba(251,191,36,0.15)"
           />
           <RuleCard 
             icon={<AlertCircle className="w-8 h-8 text-rose-500" />}
             title="3. Three Strikes = Out"
-            desc="Accumulating 3 inactive strikes results in an automated, irreversible disqualification from the event. Keep coding to stay alive."
+            desc="Accumulating 3 inactive strikes flags your team for disqualification review. Push code to erase strikes and restore your stability score."
             glow="rgba(244,63,94,0.15)"
           />
           <RuleCard 
@@ -152,6 +152,65 @@ export default function Home() {
             glow="rgba(52,211,153,0.1)"
           />
         </div>
+
+        {/* STRIKE SYSTEM EXPLAINER */}
+        <motion.div 
+          initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.7, delay: 0.2 }}
+          className="mt-6 bg-white/[0.02] border border-white/[0.05] rounded-3xl p-8 md:p-12 backdrop-blur-sm relative overflow-hidden group hover:border-orange-500/20 transition-all duration-500"
+        >
+          <div className="absolute top-0 right-0 w-96 h-96 bg-orange-500/5 rounded-full blur-[100px] pointer-events-none -mr-20 -mt-20 group-hover:bg-orange-500/10 transition-colors duration-700" />
+          
+          <div className="flex items-center gap-4 mb-10 relative z-10">
+            <div className="p-3 bg-orange-500/10 rounded-xl border border-orange-500/20">
+              <Activity className="w-6 h-6 text-orange-400" />
+            </div>
+            <h3 className="text-2xl md:text-3xl font-bold text-white">Core Mechanic: The Strike System</h3>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-10 relative z-10">
+            <div className="space-y-8">
+              <div>
+                <h4 className="text-lg font-bold text-slate-200 mb-2 flex items-center gap-3">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.6)]"></span>
+                  0-59 Minutes (0 Strikes)
+                </h4>
+                <p className="text-sm text-slate-400 leading-relaxed">Status is <span className="text-emerald-400 font-bold tracking-wide">ACTIVE</span>. Your team is coding consistently and retains a 100% Stability Score.</p>
+              </div>
+              
+              <div>
+                <h4 className="text-lg font-bold text-slate-200 mb-2 flex items-center gap-3">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.6)]"></span>
+                  60-179 Minutes (1-2 Strikes)
+                </h4>
+                <p className="text-sm text-slate-400 leading-relaxed">Status drops to <span className="text-amber-400 font-bold tracking-wide">WARNING</span>. 1 strike is assigned at 60 mins, and a 2nd at 120 mins. Your Stability Score drops significantly (down to 20%).</p>
+              </div>
+
+              <div>
+                <h4 className="text-lg font-bold text-slate-200 mb-2 flex items-center gap-3">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.6)]"></span>
+                  180+ Minutes (3+ Strikes)
+                </h4>
+                <p className="text-sm text-slate-400 leading-relaxed">Status falls to <span className="text-rose-400 font-bold tracking-wide">INACTIVE</span>. The system sends an automated alert to the judges flagging your team for disqualification review.</p>
+              </div>
+            </div>
+
+            <div className="bg-[#0a0a0a]/80 rounded-2xl p-8 border border-white/[0.08] flex flex-col justify-center relative overflow-hidden h-full">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-[50px] pointer-events-none" />
+              <h4 className="text-xl font-bold text-cyan-400 mb-4 flex items-center gap-3 relative z-10">
+                <Zap className="w-5 h-5" /> The Forgiveness Reset
+              </h4>
+              <p className="text-sm text-slate-300 leading-relaxed mb-6 font-medium relative z-10">
+                The strike system is perfectly automated and entirely forgiving. It purely calculates the time since your <strong className="text-white">latest valid positive GitHub push</strong>.
+              </p>
+              <div className="inline-flex items-start md:items-center gap-4 p-5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-sm font-medium text-cyan-200 relative z-10 shadow-[0_0_30px_rgba(6,182,212,0.1)]">
+                <Github className="w-6 h-6 text-cyan-400 shrink-0 mt-0.5 md:mt-0" />
+                <span className="leading-relaxed">Pushing genuine code instantly resets your inactivity timer to 0 minutes, clearing all strikes immediately.</span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </motion.div>
 
       {/* HOW IT WORKS */}
