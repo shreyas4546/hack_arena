@@ -85,7 +85,7 @@ export default function ParticipantDashboard() {
         <div className="text-center space-y-4">
           <h1 className="text-4xl md:text-6xl font-black tracking-tight bg-gradient-to-b from-white to-orange-200/60 bg-clip-text text-transparent">Participant Dashboard</h1>
           <p className="text-slate-500 max-w-xl mx-auto font-medium">
-            Check your team&apos;s real-time engine evaluation, including activity score, accumulated strikes, and current standing.
+            Check your team&apos;s real-time status, including last detected commit and deployment health.
           </p>
         </div>
 
@@ -125,7 +125,7 @@ export default function ParticipantDashboard() {
                   </div>
                   <div>
                     <h2 className="text-2xl font-black tracking-tight">{selectedTeam.team_name}</h2>
-                    <p className="text-sm font-medium opacity-80 uppercase tracking-widest mt-0.5">Engine Status: {selectedTeam.status}</p>
+                    <p className="text-sm font-medium opacity-80 uppercase tracking-widest mt-0.5">Status: {selectedTeam.status}</p>
                   </div>
                 </div>
 
