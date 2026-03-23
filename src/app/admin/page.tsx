@@ -41,6 +41,7 @@ type TimerState = {
   status: "running" | "paused" | "stopped";
   startTime: Date;
   accumulatedMs: number;
+  durationHours: number;
 };
 
 function getActivityLevel(team: Team): "high" | "medium" | "low" | "dead" {
@@ -81,7 +82,7 @@ export default function AdminDashboard() {
   const [regLocking, setRegLocking] = useState(false);
   const [lastChecked, setLastChecked] = useState<Date>(new Date());
   const [graphMode, setGraphMode] = useState<"commits" | "activeTeams">("activeTeams");
-  const [timerState, setTimerState] = useState<TimerState>({ status: "stopped", startTime: new Date(), accumulatedMs: 0 });
+  const [timerState, setTimerState] = useState<TimerState>({ status: "stopped", startTime: new Date(), accumulatedMs: 0, durationHours: 24 });
 
   // Disqualification modal state
   const [disqualifyTarget, setDisqualifyTarget] = useState<Team | null>(null);
@@ -98,7 +99,8 @@ export default function AdminDashboard() {
         setTimerState({
           status: settings.timer_status || "stopped",
           startTime: settings.timer_start_time ? new Date(settings.timer_start_time) : new Date(),
-          accumulatedMs: Number(settings.timer_accumulated_ms) || 0
+          accumulatedMs: Number(settings.timer_accumulated_ms) || 0,
+          durationHours: Number(settings.timer_duration_hours) || 24
         });
       }
       if (regLockRes.ok) {
@@ -613,11 +615,13 @@ function HackathonClockPanel({ onManualCheck, triggering, lastChecked, timerStat
     }
   }, [now, timerState]);
 
-  const handleTimerAction = async (action: "start" | "pause" | "stop") => {
-    const newStatus = action === "start" ? "running" : action === "pause" ? "paused" : "stopped";
-    if (timerState.status === newStatus) return;
+  const handleTimerAction = async (action: "start" | "pause" | "stop" | "restart" | "update", overrideDuration?: number) => {
+    let newStatus = action === "update" ? timerState.status : action === "start" ? "running" : action === "pause" ? "paused" : action === "restart" ? "running" : "stopped";
+    if (action === "start" && timerState.status === "running") return;
     
-    const body: any = { timer_status: newStatus };
+    const body: any = {};
+    if (action !== "update") body.timer_status = newStatus;
+
     let newAccumulated = timerState.accumulatedMs;
     let newStartTime = timerState.startTime;
 
@@ -625,6 +629,11 @@ function HackathonClockPanel({ onManualCheck, triggering, lastChecked, timerStat
       newStartTime = new Date();
       body.timer_start_time = newStartTime.toISOString();
       if (timerState.status === "stopped") { newAccumulated = 0; body.timer_accumulated_ms = 0; }
+    } else if (action === "restart") {
+      newStartTime = new Date();
+      newAccumulated = 0;
+      body.timer_start_time = newStartTime.toISOString();
+      body.timer_accumulated_ms = 0;
     } else if (action === "pause") {
       newAccumulated = elapsedMs;
       body.timer_accumulated_ms = newAccumulated;
@@ -633,14 +642,18 @@ function HackathonClockPanel({ onManualCheck, triggering, lastChecked, timerStat
       body.timer_accumulated_ms = 0;
     }
 
-    setTimerState({ status: newStatus, startTime: newStartTime, accumulatedMs: newAccumulated });
-    if (action === "stop") setElapsedMs(0);
+    if (overrideDuration !== undefined) {
+      body.timer_duration_hours = overrideDuration;
+    }
 
-    const toastId = toast.loading(`${action === 'start' ? 'Starting' : action === 'pause' ? 'Pausing' : 'Stopping'} timer...`);
+    setTimerState({ status: newStatus as any, startTime: newStartTime, accumulatedMs: newAccumulated, durationHours: overrideDuration ?? timerState.durationHours });
+    if (action === "stop" || action === "restart") setElapsedMs(0);
+
+    const toastId = toast.loading(action === "update" ? "Updating duration..." : `${action === 'start' ? 'Starting' : action === 'restart' ? 'Restarting' : action === 'pause' ? 'Pausing' : 'Stopping'} timer...`);
     try {
       const res = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!res.ok) throw new Error("Failed");
-      toast.success(`Timer ${newStatus}`, { id: toastId });
+      toast.success(action === "update" ? "Duration Updated" : `Timer ${newStatus}`, { id: toastId });
     } catch {
       toast.error("Failed to sync timer", { id: toastId });
     }
@@ -648,7 +661,10 @@ function HackathonClockPanel({ onManualCheck, triggering, lastChecked, timerStat
 
   if (!now) return <div className="h-16 w-full animate-pulse bg-slate-900/50 rounded-2xl border border-white/5 mb-6"></div>;
 
-  const totalDuration = 24; // Example duration
+  const totalDuration = timerState.durationHours || 24;
+  const [localDuration, setLocalDuration] = useState(totalDuration.toString());
+  
+  useEffect(() => { setLocalDuration(totalDuration.toString()); }, [totalDuration]);
   const elapsedHrs = Math.floor(elapsedMs / (1000 * 60 * 60));
   const elapsedMins = Math.floor((elapsedMs % (1000 * 60 * 60)) / (1000 * 60));
 
@@ -678,14 +694,32 @@ function HackathonClockPanel({ onManualCheck, triggering, lastChecked, timerStat
             <Button onClick={() => handleTimerAction('start')} disabled={timerState.status === 'running'} size="sm" variant="outline" className={cn("h-7 text-[10px] uppercase font-bold tracking-wider rounded-lg transition-all", timerState.status === 'running' ? "border-white/5 text-slate-500 bg-transparent" : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50")}><Play className="w-3 h-3 mr-1" /> Start</Button>
             <Button onClick={() => handleTimerAction('pause')} disabled={timerState.status !== 'running'} size="sm" variant="outline" className={cn("h-7 text-[10px] uppercase font-bold tracking-wider rounded-lg transition-all", timerState.status !== 'running' ? "border-white/5 text-slate-500 bg-transparent" : "border-amber-500/30 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/50")}><Pause className="w-3 h-3 mr-1" /> Pause</Button>
             <Button onClick={() => handleTimerAction('stop')} disabled={timerState.status === 'stopped'} size="sm" variant="outline" className={cn("h-7 text-[10px] uppercase font-bold tracking-wider rounded-lg transition-all", timerState.status === 'stopped' ? "border-white/5 text-slate-500 bg-transparent" : "border-rose-500/30 text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/50")}><Square className="w-3 h-3 mr-1" /> Stop</Button>
+            <Button onClick={() => handleTimerAction('restart')} size="sm" variant="outline" className="h-7 text-[10px] uppercase font-bold tracking-wider rounded-lg transition-all border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/50"><RefreshCw className="w-3 h-3 mr-1" /> Restart</Button>
           </div>
         </div>
         
         <div className="flex flex-col items-center md:items-start">
           <span className="text-[10px] uppercase tracking-widest font-semibold flex items-center gap-1.5"><span className={cn("w-2 h-2 rounded-full", timerState.status === 'running' ? "bg-emerald-500 animate-pulse" : timerState.status === 'paused' ? "bg-amber-500" : "bg-rose-500")} /> Event Duration</span>
-          <span className="text-sm font-medium text-slate-300">
-            {elapsedHrs}h {elapsedMins}m elapsed <span className="text-slate-600 px-1">/</span> {totalDuration}h total
-          </span>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-sm font-medium text-slate-300">
+              {elapsedHrs}h {elapsedMins}m elapsed <span className="text-slate-600 px-1">/</span>
+            </span>
+            <Input 
+              type="number" 
+              value={localDuration} 
+              onChange={(e) => setLocalDuration(e.target.value)} 
+              onBlur={() => {
+                const val = parseInt(localDuration);
+                if (!isNaN(val) && val > 0 && val !== totalDuration) {
+                  handleTimerAction("update", val);
+                } else {
+                  setLocalDuration(totalDuration.toString());
+                }
+              }}
+              className="w-14 h-7 text-xs font-bold bg-slate-900/50 hover:bg-slate-900/80 focus:bg-slate-950 border-white/10 text-center text-white p-0 rounded-md shadow-inner transition-colors"
+            />
+            <span className="text-sm font-medium text-slate-500">h total</span>
+          </div>
         </div>
       </div>
 

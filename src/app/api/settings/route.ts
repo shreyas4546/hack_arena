@@ -16,6 +16,7 @@ export async function POST(request: Request) {
     if (body.timer_status !== undefined) updateData.timer_status = body.timer_status;
     if (body.timer_start_time !== undefined) updateData.timer_start_time = body.timer_start_time;
     if (body.timer_accumulated_ms !== undefined) updateData.timer_accumulated_ms = body.timer_accumulated_ms;
+    if (body.timer_duration_hours !== undefined) updateData.timer_duration_hours = body.timer_duration_hours;
 
     if (Object.keys(updateData).length === 0) return NextResponse.json({ error: "No fields to update" }, { status: 400 });
 
