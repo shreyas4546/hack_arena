@@ -59,7 +59,7 @@ export default function Preloader() {
               width={400} 
               height={400} 
               priority
-              className="relative z-10 drop-shadow-[0_0_20px_rgba(244,63,94,0.3)] mix-blend-screen"
+              className="relative z-10 drop-shadow-[0_0_25px_rgba(244,63,94,0.4)]"
             />
           </motion.div>
 
