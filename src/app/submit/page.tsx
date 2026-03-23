@@ -100,7 +100,7 @@ export default function SubmitPage() {
 
       <motion.div
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.5 }}
         className="w-full max-w-2xl mb-6 relative z-10"
       >
         <Link href="/" className="text-slate-500 hover:text-orange-400 flex items-center gap-2 group transition-colors w-fit">
@@ -111,7 +111,7 @@ export default function SubmitPage() {
 
       <motion.div
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.5, delay: 0.1 }}
         className="w-full max-w-2xl p-8 sm:p-10 rounded-2xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-xl shadow-2xl relative overflow-hidden z-10"
       >
         <div className="absolute top-0 right-0 w-96 h-96 bg-orange-500/8 rounded-full blur-[100px] pointer-events-none -mr-20 -mt-20" />

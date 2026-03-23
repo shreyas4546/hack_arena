@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { getLatestPushTime } from "@/lib/github";
 import { sendDiscordNotification } from "@/lib/discord";
 
-export const maxDuration = 60; // Max allowed for Vercel Hobby/Pro depending on plan, helps prevent raw timeouts
+// export const maxDuration = 60; // Max allowed for Vercel Hobby/Pro depending on plan, helps prevent raw timeouts
 export const dynamic = "force-dynamic";
 
 // Evaluation Constants

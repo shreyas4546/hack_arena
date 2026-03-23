@@ -75,7 +75,7 @@ export default function ParticipantDashboard() {
 
       <motion.div
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.5 }}
         className="w-full max-w-3xl relative z-10 space-y-8"
       >
         <Link href="/" className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-orange-400 transition-colors mb-4">

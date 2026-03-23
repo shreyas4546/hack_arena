@@ -10,7 +10,7 @@ const fadeUp = {
   hidden: { opacity: 0, y: 30 },
   visible: (i: number) => ({
     opacity: 1, y: 0,
-    transition: { delay: i * 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }
+    transition: { delay: i * 0.1, duration: 0.6 }
   })
 };
 
@@ -113,7 +113,7 @@ export default function Home() {
       <motion.div 
         initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-100px" }}
-        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.7 }}
         className="relative z-10 w-full max-w-5xl mb-28"
       >
         <div className="text-center mb-14">
@@ -158,7 +158,7 @@ export default function Home() {
       <motion.div 
         initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-100px" }}
-        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.7 }}
         className="relative z-10 w-full max-w-5xl mb-24"
       >
         <div className="text-center mb-12">
