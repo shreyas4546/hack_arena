@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Activity, Code, ShieldCheck, Github, AlertCircle, Terminal, Zap, Flag, Lock } from "lucide-react";
+import { Activity, Code, ShieldCheck, Github, AlertCircle, Terminal, Zap, Flag, Lock, Trophy, HeartPulse } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const fadeUp = {
@@ -208,6 +208,53 @@ export default function Home() {
                 <Github className="w-6 h-6 text-cyan-400 shrink-0 mt-0.5 md:mt-0" />
                 <span className="leading-relaxed">Pushing genuine code instantly resets your inactivity timer to 0 minutes, clearing all strikes immediately.</span>
               </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* SCORING SYSTEM EXPLAINER */}
+        <motion.div 
+          initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.7, delay: 0.3 }}
+          className="mt-6 bg-white/[0.02] border border-white/[0.05] rounded-3xl p-8 md:p-12 backdrop-blur-sm relative overflow-hidden group hover:border-cyan-500/20 transition-all duration-500"
+        >
+          <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 rounded-full blur-[100px] pointer-events-none -mr-20 -mt-20 group-hover:bg-cyan-500/10 transition-colors duration-700" />
+          
+          <div className="flex items-center gap-4 mb-10 relative z-10">
+            <div className="p-3 bg-cyan-500/10 rounded-xl border border-cyan-500/20">
+              <Trophy className="w-6 h-6 text-cyan-400" />
+            </div>
+            <h3 className="text-2xl md:text-3xl font-bold text-white">Engine Evaluation Score</h3>
+          </div>
+
+          <p className="text-slate-400 max-w-3xl leading-relaxed mb-8 relative z-10">
+            The HackArena master server constantly calculates a precise <strong className="text-white">0.0 to 10.0</strong> technical health score for your team. This score is updated in real-time on your dashboard and provides judges with objective technical data.
+          </p>
+
+          <div className="grid md:grid-cols-3 gap-6 relative z-10">
+            <div className="bg-white/[0.03] rounded-2xl p-6 border border-white/[0.05]">
+              <h4 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                <Github className="w-5 h-5 text-orange-400" /> Activity (40%)
+              </h4>
+              <p className="text-sm text-slate-400 leading-relaxed mb-3">Scores how recently you have pushed code. It degrades linearly over 24 hours.</p>
+              <div className="text-xs font-medium px-3 py-1.5 bg-orange-500/10 text-orange-300 rounded max-w-fit">Push code to lock at 100%</div>
+            </div>
+
+            <div className="bg-white/[0.03] rounded-2xl p-6 border border-white/[0.05]">
+              <h4 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                <HeartPulse className="w-5 h-5 text-emerald-400" /> Deployment (40%)
+              </h4>
+              <p className="text-sm text-slate-400 leading-relaxed mb-3">Scores your live link presence. 100% if the site resolves rapidly, 50% if slow, 0% if down or missing.</p>
+              <div className="text-xs font-medium px-3 py-1.5 bg-emerald-500/10 text-emerald-300 rounded max-w-fit">Submit a working live link</div>
+            </div>
+
+            <div className="bg-white/[0.03] rounded-2xl p-6 border border-white/[0.05]">
+              <h4 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-indigo-400" /> Stability (20%)
+              </h4>
+              <p className="text-sm text-slate-400 leading-relaxed mb-3">Tied directly to your Strike Count. 0 strikes = 100%, 1 strike = 50%, 2 strikes = 20%, 3+ strikes = 0%.</p>
+              <div className="text-xs font-medium px-3 py-1.5 bg-indigo-500/10 text-indigo-300 rounded max-w-fit">Keep strikes at 0</div>
             </div>
           </div>
         </motion.div>

@@ -94,24 +94,6 @@ export default function AdminJudgingMatrix() {
     }
   };
 
-  const calculateAutomatedBase = (team: Team) => {
-      // Raw engine evaluation score normalized out of 7 points for a quick suggestion.
-      let base = 0;
-      // 1. Commit Recency (max 3)
-      const minsDiff = differenceInMinutes(new Date(), new Date(team.last_push));
-      if (minsDiff < 60) base += 3;
-      else if (minsDiff < 180) base += 2;
-      else if (minsDiff < 360) base += 1;
-      
-      // 2. Deployment Health (max 4)
-      if (team.deployment_status === 'live') base += 4;
-      else if (team.deployment_status === 'slow') base += 2;
-      
-      // 3. Demerits
-      base -= (team.strike_count * 1);
-      
-      return Math.max(0, Math.min(7, base));
-  };
 
   return (
     <main className="min-h-screen bg-[#020617] text-white p-6 md:p-12 selection:bg-rose-500/30">
@@ -150,7 +132,6 @@ export default function AdminJudgingMatrix() {
                 <tbody className="divide-y divide-white/5">
                   {teams.map((team) => {
                     const isEdited = localScores[team.id] !== (team.judge_score !== null ? team.judge_score.toString() : "");
-                    const suggestedBase = calculateAutomatedBase(team);
 
                     return (
                       <tr key={team.id} className={cn("hover:bg-white/[0.02] transition-colors", team.status === "disqualified" && "opacity-50 grayscale")}>
@@ -192,7 +173,6 @@ export default function AdminJudgingMatrix() {
                             <span className="text-xs text-slate-500 flex items-center gap-1">
                                Deploy: <span className={team.deployment_status === 'live' ? "text-emerald-400" : "text-amber-400"}>{team.deployment_status}</span>
                             </span>
-                            <span className="text-[10px] text-indigo-400 font-medium">Algorithmic Base: ~{suggestedBase}/7</span>
                           </div>
                         </td>
 
