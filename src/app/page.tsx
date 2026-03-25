@@ -17,6 +17,7 @@ const fadeUp = {
 export default function Home() {
   const [regLocked, setRegLocked] = useState(false);
   const [subLocked, setSubLocked] = useState(false);
+  const [announcement, setAnnouncement] = useState<string | null>(null);
   const [fetchingLocks, setFetchingLocks] = useState(true);
 
   useEffect(() => {
@@ -27,7 +28,11 @@ export default function Home() {
           fetch("/api/settings")
         ]);
         if (regRes.ok) setRegLocked((await regRes.json()).registration_locked);
-        if (subRes.ok) setSubLocked((await subRes.json()).submissions_locked);
+        if (subRes.ok) {
+          const settings = await subRes.json();
+          setSubLocked(settings.submissions_locked);
+          setAnnouncement(settings.global_announcement || null);
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -51,13 +56,28 @@ export default function Home() {
         initial="hidden" animate="visible"
         className="relative z-10 max-w-5xl w-full text-center space-y-8 mb-28"
       >
-        <motion.div custom={0} variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-bold uppercase tracking-[0.2em]">
+        <motion.div custom={0} variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-bold uppercase tracking-[0.2em] mb-2">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
           </span>
           Live Event Monitoring
         </motion.div>
+
+        {announcement && (
+          <motion.div custom={0.5} variants={fadeUp} className="w-full max-w-2xl mx-auto mb-6">
+            <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-4 md:p-5 flex items-start md:items-center gap-4 shadow-[0_0_30px_rgba(244,63,94,0.15)] relative overflow-hidden text-left md:text-center">
+               <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full blur-[50px] pointer-events-none" />
+               <AlertCircle className="w-6 h-6 text-rose-400 shrink-0 mt-0.5 md:mt-0" />
+               <div className="flex-1">
+                 <p className="text-[10px] uppercase tracking-widest text-rose-400/80 font-bold mb-1">Global Announcement</p>
+                 <p className="text-sm md:text-base font-bold text-rose-100 tracking-wide leading-relaxed">
+                   {announcement}
+                 </p>
+               </div>
+            </div>
+          </motion.div>
+        )}
 
         <motion.h1 custom={1} variants={fadeUp} className="text-6xl md:text-9xl font-black tracking-tighter bg-gradient-to-b from-white via-orange-100 to-orange-500/60 bg-clip-text text-transparent leading-[0.9]">
           HackArena

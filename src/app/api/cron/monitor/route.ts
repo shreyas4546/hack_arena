@@ -174,7 +174,11 @@ export async function GET(request: Request) {
       await supabaseAdmin.from("teams").update(update).eq("id", update.id);
     }
 
-    const formatList = (arr: string[]) => arr.length > 0 ? arr.join("\n") : "None";
+    const formatList = (arr: string[]) => {
+      if (arr.length === 0) return "None";
+      if (arr.length > 15) return arr.slice(0, 15).join("\n") + `\n...and ${arr.length - 15} more`;
+      return arr.join("\n");
+    };
 
     const customMessage = `
 **🟢 Active Teams**

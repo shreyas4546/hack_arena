@@ -63,7 +63,9 @@ export default function GlobalTimer() {
 
   // Don't show in admin routes as admin has their own large panel
   if (pathname?.startsWith("/admin")) return null;
-  if (!timerState || timerState.status === "stopped") return null;
+  if (!timerState) return null;
+
+  const showTimer = timerState.status !== "stopped";
 
   const totalMs = timerState.durationHours * 60 * 60 * 1000;
   const remainingMs = Math.max(0, totalMs - elapsedMs);
@@ -96,7 +98,8 @@ export default function GlobalTimer() {
       )}
 
       {/* ⏱️ FLOATING TOP TIMER ⏱️ */}
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 duration-500 pointer-events-none flex flex-col items-center gap-2">
+      {showTimer && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 duration-500 pointer-events-none flex flex-col items-center gap-2">
         
         <div className={cn(
           "flex items-center gap-3 px-5 py-2.5 rounded-2xl border backdrop-blur-xl shadow-2xl transition-all duration-500",
@@ -121,7 +124,8 @@ export default function GlobalTimer() {
           </span>
         </div>
       </div>
-    </div>
+        </div>
+      )}
     </>
   );
 }

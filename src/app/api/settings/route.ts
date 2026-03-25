@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { sendDiscordNotification } from "@/lib/discord";
 
 export const dynamic = "force-dynamic";
 
@@ -34,10 +35,24 @@ export async function POST(request: Request) {
       // If table is empty, upsert first row
       const { data: upsertData, error: upsertError } = await supabaseAdmin.from("settings").insert([{ id: 1, ...updateData }]).select().single();
       if (upsertError) throw upsertError;
+      
+      if (body.global_announcement !== undefined && body.global_announcement.trim() !== "") {
+        await sendDiscordNotification({
+          content: `📢 **Global Announcement**\n\n${body.global_announcement}`,
+        });
+      }
+      
       return NextResponse.json(upsertData);
     }
     
     if (error) throw error;
+    
+    if (body.global_announcement !== undefined && body.global_announcement.trim() !== "") {
+      await sendDiscordNotification({
+        content: `📢 **Global Announcement**\n\n${body.global_announcement}`,
+      });
+    }
+    
     return NextResponse.json(data);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
