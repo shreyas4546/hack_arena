@@ -30,8 +30,11 @@ export default function Home() {
         if (regRes.ok) setRegLocked((await regRes.json()).registration_locked);
         if (subRes.ok) {
           const settings = await subRes.json();
+          console.log("Announcement data retrieved:", settings.global_announcement);
           setSubLocked(settings.submissions_locked);
           setAnnouncement(settings.global_announcement || null);
+        } else {
+          console.error("Failed to fetch settings:", subRes.status);
         }
       } catch (err) {
         console.error(err);

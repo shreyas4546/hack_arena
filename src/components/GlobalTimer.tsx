@@ -24,9 +24,10 @@ export default function GlobalTimer() {
     async function fetchSettings() {
       try {
         const res = await fetch("/api/settings");
-        if (res.ok) {
-          const settings = await res.json();
-          setTimerState({
+          if (res.ok) {
+            const settings = await res.json();
+            console.log("GlobalTimer refreshed announcement:", settings.global_announcement);
+            setTimerState({
             status: settings.timer_status || "stopped",
             startTime: settings.timer_start_time ? new Date(settings.timer_start_time) : new Date(),
             accumulatedMs: Number(settings.timer_accumulated_ms) || 0,
