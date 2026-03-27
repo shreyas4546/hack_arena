@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 type TimerState = {
-  status: "running" | "paused" | "stopped";
+  status: "running" | "paused" | "stopped" | "unset";
   startTime: Date;
   accumulatedMs: number;
   durationHours: number;
@@ -28,7 +28,7 @@ export default function GlobalTimer() {
             const settings = await res.json();
             console.log("GlobalTimer refreshed announcement:", settings.global_announcement);
             setTimerState({
-            status: settings.timer_status || "stopped",
+            status: settings.timer_status || "unset",
             startTime: settings.timer_start_time ? new Date(settings.timer_start_time) : new Date(),
             accumulatedMs: Number(settings.timer_accumulated_ms) || 0,
             durationHours: Number(settings.timer_duration_hours) || 24,
@@ -62,11 +62,19 @@ export default function GlobalTimer() {
     }
   }, [now, timerState]);
 
-  // Don't show in admin routes as admin has their own large panel
-  if (pathname?.startsWith("/admin")) return null;
+  // Don't show the floating timer in admin routes as admin has their own large panel, 
+  // but we might still want to show the announcement ticker.
   if (!timerState) return null;
 
-  const showTimer = timerState.status !== "stopped";
+  const isDashboard = pathname === "/admin";
+  const isProjector = pathname === "/admin/timer";
+  const isAdmin = isDashboard || isProjector;
+
+  const showTicker = !!timerState.announcement && !isDashboard;
+  const showFloatingTimer = !isAdmin && timerState.status !== "unset";
+
+  if (isAdmin && !showTicker) return null;
+  if (!showTicker && !showFloatingTimer) return null;
 
   const totalMs = timerState.durationHours * 60 * 60 * 1000;
   const remainingMs = Math.max(0, totalMs - elapsedMs);
@@ -85,7 +93,7 @@ export default function GlobalTimer() {
       `}</style>
       
       {/* 🚨 FULL-WIDTH BOTTOM TICKER 🚨 */}
-      {timerState.announcement && (
+      {showTicker && (
         <div className="fixed bottom-0 left-0 right-0 z-[100] h-10 bg-rose-600/95 backdrop-blur-md border-t border-rose-400/50 shadow-[0_-10px_40px_rgba(225,29,72,0.4)] flex items-center overflow-hidden">
           <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-rose-600 to-transparent z-10 pointer-events-none" />
           
@@ -99,7 +107,7 @@ export default function GlobalTimer() {
       )}
 
       {/* ⏱️ FLOATING TOP TIMER ⏱️ */}
-      {showTimer && (
+      {showFloatingTimer && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 duration-500 pointer-events-none flex flex-col items-center gap-2">
         
         <div className={cn(

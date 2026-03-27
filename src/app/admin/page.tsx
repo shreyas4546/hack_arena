@@ -9,7 +9,8 @@ import {
   Search, RefreshCw, Lock, Unlock, Users,
   ExternalLink, Github, Activity, ArrowUpDown, Clock,
   Gavel, ChevronLeft, ChevronRight, Play, Layers, Trophy,
-  Flame, Zap, Crown, Medal, Award, BarChart3, Timer, Pause, Square, Ban, Download
+  Flame, Zap, Crown, Medal, Award, BarChart3, Timer, Pause, Square, Ban, Download,
+  Monitor, Plus, LockOpen
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,7 @@ type SortField = "team_name" | "last_push" | "strike_count" | "status" | "score"
 type SortOrder = "asc" | "desc";
 
 type TimerState = {
-  status: "running" | "paused" | "stopped";
+  status: "running" | "paused" | "stopped" | "unset";
   startTime: Date;
   accumulatedMs: number;
   durationHours: number;
@@ -102,7 +103,7 @@ export default function AdminDashboard() {
         const settings = await settingsRes.json();
         setSubmissionsLocked(settings.submissions_locked);
         setTimerState({
-          status: settings.timer_status || "stopped",
+          status: settings.timer_status || "unset",
           startTime: settings.timer_start_time ? new Date(settings.timer_start_time) : new Date(),
           accumulatedMs: Number(settings.timer_accumulated_ms) || 0,
           durationHours: Number(settings.timer_duration_hours) || 24,
@@ -687,6 +688,9 @@ function SortableHeader({ label, field, currentSort, sortOrder, onClick, classNa
 
 function HackathonClockPanel({ onManualCheck, triggering, lastChecked, timerState, setTimerState }: { onManualCheck: () => void; triggering: boolean; lastChecked: Date; timerState: TimerState; setTimerState: (s: TimerState) => void }) {
   const [now, setNow] = useState<Date | null>(null);
+  const [isEmergencyLocked, setIsEmergencyLocked] = useState(true);
+  const [pendingAction, setPendingAction] = useState<"stop" | "restart" | null>(null);
+  
   useEffect(() => { setNow(new Date()); const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
 
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -700,15 +704,23 @@ function HackathonClockPanel({ onManualCheck, triggering, lastChecked, timerStat
     }
   }, [now, timerState]);
 
-  const handleTimerAction = async (action: "start" | "pause" | "stop" | "restart" | "update", overrideDuration?: number) => {
-    if (action === "restart") {
-      if (!window.confirm("⚠️ ARE YOU SURE?\n\nYou are about to RESTART the entire hackathon timer. This will reset the global clock to 00:00:00 for everyone.\n\nPress OK only if you mean to do this.")) return;
-    }
-    if (action === "stop") {
-      if (!window.confirm("⚠️ ARE YOU SURE?\n\nYou are about to completely STOP the timer. This is typically only done at the very end of the hackathon.\n\nPress OK to stop the event.")) return;
+  const handleTimerAction = async (action: "start" | "pause" | "stop" | "restart" | "update" | "unset", overrideDuration?: number, statusOverride?: "running" | "paused" | "stopped" | "unset", confirmed = false) => {
+    if ((action === "restart" || action === "stop") && !confirmed) {
+      if (isEmergencyLocked) {
+        toast.error("Emergency Zone is Locked. Unlock first.");
+        return;
+      }
+      setPendingAction(action);
+      return;
     }
 
-    let newStatus = action === "update" ? timerState.status : action === "start" ? "running" : action === "pause" ? "paused" : action === "restart" ? "running" : "stopped";
+    let newStatus = statusOverride ? statusOverride : 
+                    action === "update" ? timerState.status : 
+                    action === "start" ? "running" : 
+                    action === "pause" ? "paused" : 
+                    action === "restart" ? "running" : 
+                    (action === "unset" || action === "stop") ? "unset" : "stopped";
+    
     if (action === "start" && timerState.status === "running") return;
     
     const body: any = {};
@@ -729,19 +741,19 @@ function HackathonClockPanel({ onManualCheck, triggering, lastChecked, timerStat
     } else if (action === "pause") {
       newAccumulated = elapsedMs;
       body.timer_accumulated_ms = newAccumulated;
-    } else if (action === "stop") {
+    } else if (action === "stop" || action === "unset") {
       newAccumulated = 0;
       body.timer_accumulated_ms = 0;
     }
 
     if (overrideDuration !== undefined) {
-      body.timer_duration_hours = overrideDuration;
+      body.timer_duration_hours = Math.round(overrideDuration * 100) / 100;
     }
 
     setTimerState({ status: newStatus as any, startTime: newStartTime, accumulatedMs: newAccumulated, durationHours: overrideDuration ?? timerState.durationHours, announcement: timerState.announcement });
     if (action === "stop" || action === "restart") setElapsedMs(0);
 
-    const toastId = toast.loading(action === "update" ? "Updating duration..." : `${action === 'start' ? 'Starting' : action === 'restart' ? 'Restarting' : action === 'pause' ? 'Pausing' : 'Stopping'} timer...`);
+    const toastId = toast.loading(action === "update" ? "Updating duration..." : action === "unset" ? "Deactivating timer..." : `${action === 'start' ? 'Starting' : action === 'restart' ? 'Restarting' : action === 'pause' ? 'Pausing' : 'Stopping'} timer...`);
     try {
       const res = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!res.ok) throw new Error("Failed");
@@ -751,108 +763,290 @@ function HackathonClockPanel({ onManualCheck, triggering, lastChecked, timerStat
     }
   };
 
+  const handleAddMinutes = (mins: number) => {
+    const currentHours = timerState.durationHours || 24;
+    const addedHours = mins / 60;
+    handleTimerAction("update", currentHours + addedHours);
+  };
+
   const totalDuration = timerState.durationHours || 24;
   const [localDuration, setLocalDuration] = useState(totalDuration.toString());
   
   useEffect(() => { setLocalDuration(totalDuration.toString()); }, [totalDuration]);
 
-  if (!now) return <div className="h-16 w-full animate-pulse bg-slate-900/50 rounded-2xl border border-white/5 mb-6"></div>;
+  if (!now) return <div className="h-48 w-full animate-pulse bg-slate-900/50 rounded-2xl border border-white/5 mb-8"></div>;
+  
   const elapsedHrs = Math.floor(elapsedMs / (1000 * 60 * 60));
   const elapsedMins = Math.floor((elapsedMs % (1000 * 60 * 60)) / (1000 * 60));
 
-  const nextCheckpointHrs = elapsedHrs + 1;
-  const nextCheckpointMs = nextCheckpointHrs * 60 * 60 * 1000;
-  const msUntilNext = nextCheckpointMs - elapsedMs;
-  const minsUntilNext = Math.floor(msUntilNext / (1000 * 60));
-  const secsUntilNext = Math.floor((msUntilNext % (1000 * 60)) / 1000);
+  const totalMs = totalDuration * 60 * 60 * 1000;
+  const progressPercent = Math.min(100, (elapsedMs / totalMs) * 100);
 
-  const deadlineColor = minsUntilNext < 0 ? "text-rose-400 bg-rose-500/10 border-rose-500/30" : minsUntilNext < 15 ? "text-amber-400 bg-amber-500/10 border-amber-500/30" : "text-emerald-400 bg-emerald-500/10 border-emerald-500/30";
+  const remainingMs = Math.max(0, totalMs - elapsedMs);
+  const remHrs = Math.floor(remainingMs / (1000 * 60 * 60));
+  const remMins = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+  const remSecs = Math.floor((remainingMs % (1000 * 60)) / 1000);
 
   return (
-    <div className="flex flex-col xl:flex-row justify-between items-center gap-4 p-4 rounded-2xl bg-slate-900/40 border border-white/5 backdrop-blur-md shadow-2xl relative overflow-hidden mb-8">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-cyan-500/5 blur-[80px] pointer-events-none" />
-
-      {/* Clock & Duration */}
-      <div className="flex flex-col md:flex-row items-center gap-6 relative z-10 w-full xl:w-auto justify-center xl:justify-start shrink-0">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3 bg-slate-950/50 px-5 py-2.5 rounded-xl border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
-            <Clock className="w-5 h-5 text-cyan-400" />
-            <span className="text-2xl font-mono font-bold tracking-tight text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">
-              {now.toLocaleTimeString('en-US', { hour12: false })}
-            </span>
-          </div>
-          {/* Controls */}
-          <div className="flex justify-center md:justify-start gap-2">
-            <Button onClick={() => handleTimerAction('start')} disabled={timerState.status === 'running'} size="sm" variant="outline" className={cn("h-7 text-[10px] uppercase font-bold tracking-wider rounded-lg transition-all", timerState.status === 'running' ? "border-white/5 text-slate-500 bg-transparent" : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50")}><Play className="w-3 h-3 mr-1" /> Start</Button>
-            <Button onClick={() => handleTimerAction('pause')} disabled={timerState.status !== 'running'} size="sm" variant="outline" className={cn("h-7 text-[10px] uppercase font-bold tracking-wider rounded-lg transition-all", timerState.status !== 'running' ? "border-white/5 text-slate-500 bg-transparent" : "border-amber-500/30 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/50")}><Pause className="w-3 h-3 mr-1" /> Pause</Button>
-            <Button onClick={() => handleTimerAction('stop')} disabled={timerState.status === 'stopped'} size="sm" variant="outline" className={cn("h-7 text-[10px] uppercase font-bold tracking-wider rounded-lg transition-all", timerState.status === 'stopped' ? "border-white/5 text-slate-500 bg-transparent" : "border-rose-500/30 text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/50")}><Square className="w-3 h-3 mr-1" /> Stop</Button>
-            <Button onClick={() => handleTimerAction('restart')} size="sm" variant="outline" className="h-7 text-[10px] uppercase font-bold tracking-wider rounded-lg transition-all border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/50"><RefreshCw className="w-3 h-3 mr-1" /> Restart</Button>
-          </div>
-        </div>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10 items-stretch">
+      
+      {/* 🟢 COLUMN 1: LIVE PULSE 🟢 */}
+      <div className="lg:col-span-2 relative overflow-hidden rounded-3xl bg-slate-900/40 border border-white/5 backdrop-blur-md shadow-2xl p-6 flex flex-col justify-between group">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-cyan-500/20 transition-all duration-700" />
         
-        <div className="flex flex-col items-center md:items-start">
-          <span className="text-[10px] uppercase tracking-widest font-semibold flex items-center gap-1.5"><span className={cn("w-2 h-2 rounded-full", timerState.status === 'running' ? "bg-emerald-500 animate-pulse" : timerState.status === 'paused' ? "bg-amber-500" : "bg-rose-500")} /> Event Duration</span>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-sm font-medium text-slate-300">
-              {elapsedHrs}h {elapsedMins}m elapsed <span className="text-slate-600 px-1">/</span>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+          <div className="space-y-1">
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 flex items-center gap-2">
+              <span className={cn("w-2 h-2 rounded-full", timerState.status === 'running' ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" : timerState.status === 'paused' ? "bg-amber-500" : timerState.status === 'unset' ? "bg-slate-700" : "bg-rose-500")} />
+              Event Status
             </span>
-            <Input 
-              type="number" 
-              value={localDuration} 
-              onChange={(e) => setLocalDuration(e.target.value)} 
-              onBlur={() => {
-                const val = parseInt(localDuration);
-                if (!isNaN(val) && val > 0 && val !== totalDuration) {
-                  handleTimerAction("update", val);
-                } else {
-                  setLocalDuration(totalDuration.toString());
-                }
-              }}
-              className="w-14 h-7 text-xs font-bold bg-slate-900/50 hover:bg-slate-900/80 focus:bg-slate-950 border-white/10 text-center text-white p-0 rounded-md shadow-inner transition-colors"
-            />
-            <span className="text-sm font-medium text-slate-500">h total</span>
+            <h3 className={cn("text-3xl font-black italic tracking-tighter uppercase", 
+              timerState.status === 'running' ? "text-emerald-400" : 
+              timerState.status === 'paused' ? "text-amber-400" : 
+              timerState.status === 'unset' ? "text-slate-500" : "text-rose-400"
+            )}>
+              {timerState.status === 'running' ? "Hackathon LIVE" : 
+               timerState.status === 'paused' ? "Timer Paused" : 
+               timerState.status === 'unset' ? "Timer Unset" : "Event Stopped"}
+            </h3>
+          </div>
+          
+          <div className="flex flex-col items-end">
+             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Time Remaining</span>
+             <div className="text-4xl font-mono font-black tracking-tighter tabular-nums text-white flex items-center gap-1">
+                {remHrs.toString().padStart(2, '0')}<span className="text-slate-600 font-sans text-xl">:</span>
+                {remMins.toString().padStart(2, '0')}<span className="text-slate-600 font-sans text-xl">:</span>
+                {remSecs.toString().padStart(2, '0')}
+             </div>
           </div>
         </div>
-      </div>
 
-      {/* Next Deadline Tracker */}
-      <div className={cn("flex flex-col md:flex-row items-center gap-4 px-6 py-3 rounded-xl border relative z-10 w-full xl:w-auto justify-center transition-colors", deadlineColor)}>
-         <div className="flex flex-col items-center md:items-start">
-            <span className="text-[10px] uppercase font-bold tracking-widest opacity-80 flex items-center gap-1.5"><Timer className="w-3.5 h-3.5" /> Next Commit Deadline</span>
-            <span className="text-xl font-mono font-bold">
-               {timerState.status === 'stopped' ? "--" : minsUntilNext < 0 ? "Overdue!" : `${minsUntilNext}m ${secsUntilNext.toString().padStart(2, '0')}s`}
-            </span>
-         </div>
-      </div>
+        {/* Progress Bar & Flexible Timing */}
+        <div className="space-y-4">
+           <div className="flex justify-between items-end gap-4 mb-1">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex flex-col">
+                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Event Progress</span>
+                 <div className="flex items-center gap-2">
+                    <span className="text-2xl font-black text-white">{Math.floor(progressPercent)}%</span>
+                    <span className="text-[10px] font-bold text-slate-600 uppercase">Complete</span>
+                 </div>
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-2 bg-slate-950/50 p-1.5 rounded-2xl border border-white/5 shadow-inner">
+                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2 px-1">Set Target:</span>
+                 <div className="flex items-center gap-1.5 bg-slate-900/40 p-1 rounded-xl border border-white/5">
+                   {[3, 5, 10, 24].map((h) => (
+                     <button 
+                       key={h}
+                       onClick={() => handleTimerAction("update", h)}
+                       className={cn("px-3 py-1.5 rounded-lg text-[10px] font-black transition-all", 
+                         totalDuration === h ? "bg-cyan-600 text-white shadow-lg shadow-cyan-900/40" : "bg-slate-950/50 text-slate-500 hover:text-slate-200 hover:bg-slate-800"
+                       )}
+                     >
+                       {h}H
+                     </button>
+                   ))}
+                 </div>
+                 
+                 <div className="w-px h-6 bg-white/10 mx-1" />
+                 
+                 <div className="flex items-center gap-1.5">
+                    <div className="relative group/input">
+                       <Input 
+                         type="number" 
+                         value={localDuration}
+                         onChange={(e) => setLocalDuration(e.target.value)}
+                         className="w-16 h-10 bg-slate-950 border-white/10 text-xs font-black text-center focus:ring-cyan-500/50 p-0 rounded-xl"
+                       />
+                       <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover/input:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border border-white/5 shadow-xl">Manual Hours</span>
+                    </div>
+                    <Button 
+                      onClick={() => {
+                        if (timerState.status === "unset") {
+                          const val = parseFloat(localDuration);
+                          const finalDuration = (!isNaN(val) && val > 0) ? Math.round(val * 100) / 100 : timerState.durationHours;
+                          // One call to set duration AND status to stopped
+                          handleTimerAction("update", finalDuration, "stopped"); 
+                        } else {
+                          handleTimerAction("unset");
+                        }
+                      }}
+                      size="sm"
+                      className={cn(
+                        "h-10 px-4 text-[10px] font-black uppercase rounded-xl transition-all shadow-lg",
+                        timerState.status === "unset" 
+                          ? "bg-cyan-600/90 hover:bg-cyan-500 text-white" 
+                          : "bg-rose-600/90 hover:bg-rose-500 text-white"
+                      )}
+                    >
+                      {timerState.status === "unset" ? "Set" : "Unset"}
+                    </Button>
+                 </div>
+              </div>
+           </div>
+           </div>
 
-      {/* Global Announcement */}
-      <div className="flex flex-col items-start gap-2 relative z-10 w-full xl:w-auto bg-slate-900/50 border border-white/5 p-3 rounded-xl min-w-[280px]">
-        <span className="text-[10px] uppercase tracking-widest font-semibold flex items-center gap-1.5 text-rose-400">Global Announcement Ticker</span>
-        <div className="flex gap-2 w-full">
-           <Input placeholder="Type alert (or leave blank to clear)" id="announcementInput" defaultValue={timerState?.announcement || ""} className="h-8 text-xs bg-slate-950 border-white/10 text-white placeholder:text-slate-600" />
-           <Button className="h-8 bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 font-bold transition-colors" onClick={async () => {
-              const val = (document.getElementById('announcementInput') as HTMLInputElement).value;
-              const toastId = toast.loading("Pushing announcement...");
-              try {
-                const res = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ global_announcement: val }) });
-                if (!res.ok) throw new Error("Failed");
-                toast.success(val ? "Announcement live!" : "Announcement cleared!", { id: toastId });
-                setTimerState({ ...timerState, announcement: val });
-              } catch (e) {
-                toast.error("Error setting announcement. Column might be missing.", { id: toastId });
-              }
-           }}>Push</Button>
+           <div className="h-3 w-full bg-slate-950 rounded-full border border-white/5 overflow-hidden shadow-inner p-[1px]">
+              <div 
+                className={cn("h-full rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(6,182,212,0.3)]", 
+                  timerState.status === 'running' ? "bg-gradient-to-r from-cyan-600 to-blue-400" : "bg-slate-700"
+                )}
+                style={{ width: `${progressPercent}%` }}
+              />
+           </div>
+           <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-500">
+              <span className="flex items-center gap-2"><Clock className="w-3 h-3" /> Elapsed: {elapsedHrs}h {elapsedMins}m</span>
+              <span className="text-slate-400">Target Duration: {totalDuration} Hours</span>
+           </div>
+        </div>
+
+        {/* Controls Row */}
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+           <Button 
+             onClick={() => handleTimerAction(timerState.status === 'paused' ? 'start' : 'start')} 
+             disabled={timerState.status === 'running'} 
+             className={cn("h-12 px-6 rounded-xl font-black uppercase tracking-widest transition-all shadow-lg",
+               timerState.status !== 'running' 
+                 ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20" 
+                 : "bg-slate-800 text-slate-500 opacity-50"
+             )}
+           >
+             <Play className="w-5 h-5 mr-3 fill-current" /> Start / Resume
+           </Button>
+           
+           <Button 
+             onClick={() => handleTimerAction('pause')} 
+             disabled={timerState.status !== 'running'} 
+             className="h-12 px-6 rounded-xl font-black uppercase tracking-widest bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-500/20 transition-all disabled:opacity-50"
+           >
+             <Pause className="w-5 h-5 mr-3 fill-current" /> Pause
+           </Button>
+
+           <div className="h-10 w-px bg-white/10 mx-2 hidden sm:block" />
+
+           <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mr-2">Extensions</span>
+              <Button onClick={() => handleAddMinutes(10)} size="sm" variant="outline" className="h-10 px-3 bg-slate-950/50 border-white/10 text-white hover:bg-cyan-900/30 hover:border-cyan-500/50 rounded-lg text-xs font-bold">+10m</Button>
+              <Button onClick={() => handleAddMinutes(30)} size="sm" variant="outline" className="h-10 px-3 bg-slate-950/50 border-white/10 text-white hover:bg-cyan-900/30 hover:border-cyan-500/50 rounded-lg text-xs font-bold">+30m</Button>
+              <Button onClick={() => handleAddMinutes(60)} size="sm" variant="outline" className="h-10 px-3 bg-slate-950/50 border-white/10 text-white hover:bg-indigo-900/30 hover:border-indigo-500/50 rounded-lg text-xs font-bold">+1h</Button>
+           </div>
         </div>
       </div>
 
-      {/* Manual Check */}
-      <div className="flex flex-col items-center xl:items-end gap-2 relative z-10 w-full xl:w-auto shrink-0">
-        <Button onClick={onManualCheck} disabled={triggering} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-[0_4px_20px_rgba(79,70,229,0.3)] hover:shadow-[0_4px_25px_rgba(79,70,229,0.5)] transition-all border border-indigo-500/50 rounded-xl text-sm h-11 w-full sm:w-auto px-6 group">
-          <Activity className={cn("w-4 h-4 mr-2 group-hover:scale-110 transition-transform", triggering && "animate-spin")} />
-          {triggering ? "Calculating..." : "👉 Trigger Engine Evaluation"}
-        </Button>
-        <span className="text-[11px] text-slate-500 font-medium">Last automated check: {lastChecked.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+      {/* 🔴 COLUMN 2: SECONDARY OPS & EMERGENCY 🔴 */}
+      <div className="flex flex-col gap-6">
+        {/* Projector View & Sync */}
+        <div className="rounded-3xl bg-slate-900/40 border border-white/5 p-5 backdrop-blur-md flex-1 flex flex-col justify-between gap-4">
+           <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-500">Live Services</span>
+              <div className="flex gap-2">
+                 <Button onClick={() => window.open("/admin/timer", "_blank")} size="sm" className="h-10 bg-slate-800 hover:bg-slate-700 border border-white/5 text-slate-300 text-[10px] font-black uppercase px-4 rounded-xl transition-all"><Monitor className="w-4 h-4 mr-2" /> View Projector</Button>
+                 <Button onClick={onManualCheck} disabled={triggering} size="sm" className={cn("h-10 text-white text-[10px] font-black uppercase px-4 rounded-xl transition-all shadow-lg", 
+                   triggering ? "bg-slate-800" : "bg-cyan-600 hover:bg-cyan-500 shadow-cyan-900/20 animate-pulse border border-cyan-400/30"
+                 )}>
+                   <RefreshCw className={cn("w-4 h-4 mr-2", triggering && "animate-spin")} /> Run Sync
+                 </Button>
+              </div>
+           </div>
+
+           <div className="space-y-3">
+               <div className="flex gap-2">
+                  <Input 
+                    placeholder="Global Announcement Alert..." 
+                    id="announcementInput" 
+                    defaultValue={timerState?.announcement || ""} 
+                    className="h-10 text-xs bg-slate-950/80 border-white/10 text-white placeholder:text-slate-600 pl-4 rounded-xl focus:ring-cyan-500/50 flex-1" 
+                  />
+                  <Button className="h-10 bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-black px-5 rounded-xl transition-all shadow-lg" onClick={async () => {
+                     const val = (document.getElementById('announcementInput') as HTMLInputElement).value;
+                     const toastId = toast.loading("Updating Ticker...");
+                     try {
+                       const res = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ global_announcement: val }) });
+                       if (!res.ok) throw new Error("Failed");
+                       toast.success("Ticker Updated", { id: toastId });
+                       setTimerState({ ...timerState, announcement: val });
+                     } catch { toast.error("Error", { id: toastId }); }
+                  }}>Update</Button>
+               </div>
+            </div>
+           
+           <div className="flex items-center justify-between text-[11px] text-slate-500">
+              <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Server Time: {now.toLocaleTimeString([], { hour12: false })}</span>
+              <span className="italic font-medium">Last Sync: {lastChecked.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+           </div>
+        </div>
+
+        {/* The Danger Zone */}
+        <div className="rounded-3xl bg-rose-950/20 border border-rose-500/10 p-5 backdrop-blur-md relative group transition-all duration-300">
+           <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col">
+                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500/80">Emergency Zone</span>
+                 <span className="text-[9px] font-bold text-slate-500 uppercase mt-0.5">High-Stakes Actions</span>
+              </div>
+              <button 
+                onClick={() => setIsEmergencyLocked(!isEmergencyLocked)}
+                className={cn("flex items-center gap-2 px-5 py-2.5 rounded-xl border transition-all text-[11px] font-black uppercase tracking-widest shadow-lg",
+                  isEmergencyLocked 
+                    ? "bg-slate-800 text-slate-400 border-white/10 hover:bg-slate-700 hover:text-white" 
+                    : "bg-rose-600 text-white border-rose-400 shadow-[0_0_25px_rgba(225,29,72,0.4)] animate-pulse"
+                )}
+              >
+                {isEmergencyLocked ? <Lock className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
+                {isEmergencyLocked ? "LOCKED (Arm System)" : "ARMED (High Alert)"}
+              </button>
+           </div>
+           
+           <div className="relative group/grid">
+             <div className={cn("grid grid-cols-2 gap-3 transition-all duration-500", isEmergencyLocked ? "opacity-30 blur-[2px] pointer-events-none grayscale" : "opacity-100")}>
+                <Button 
+                  onClick={() => handleTimerAction('stop')} 
+                  variant="outline" 
+                  className="h-10 bg-transparent border-rose-500/30 text-rose-400 hover:bg-rose-500 hover:text-white transition-all font-black uppercase tracking-widest text-[10px]"
+                >
+                  <Square className="w-3.5 h-3.5 mr-2" /> Stop Event
+                </Button>
+                <Button 
+                  onClick={() => handleTimerAction('restart')} 
+                  variant="outline"
+                  className="h-10 bg-transparent border-cyan-500/30 text-cyan-400 hover:bg-cyan-500 hover:text-white transition-all font-black uppercase tracking-widest text-[10px]"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 mr-2" /> Reset Clock
+                </Button>
+             </div>
+             
+             {isEmergencyLocked && (
+               <div className="absolute inset-0 flex items-center justify-center p-2 text-center z-10">
+                  <p className="text-[10px] font-extrabold text-slate-400 uppercase bg-slate-900/90 px-3 py-1 rounded-lg border border-white/5 shadow-2xl backdrop-blur-sm">Controls Locked</p>
+               </div>
+             )}
+
+             {pendingAction && (
+                <div className="absolute inset-[-12px] z-50 flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-md rounded-3xl border border-rose-500/50 shadow-[0_0_50px_rgba(225,29,72,0.3)] animate-in fade-in zoom-in duration-200 p-4 text-center">
+                  <p className="text-[11px] font-black text-rose-500 uppercase tracking-tighter mb-1">Confirm {pendingAction === 'restart' ? 'Reset' : 'Termination'}?</p>
+                  <p className="text-[9px] text-slate-400 mb-4 leading-tight">This will affect ALL participants globally.</p>
+                  <div className="flex gap-2 w-full">
+                    <Button 
+                      size="sm" 
+                      className="flex-1 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-black uppercase h-8"
+                      onClick={() => {
+                        handleTimerAction(pendingAction, undefined, undefined, true);
+                        setPendingAction(null);
+                      }}
+                    >Confirm</Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="flex-1 border-white/10 text-slate-400 text-[10px] font-black uppercase h-8 hover:bg-white/5"
+                      onClick={() => setPendingAction(null)}
+                    >Cancel</Button>
+                  </div>
+                </div>
+             )}
+           </div>
+        </div>
       </div>
     </div>
   );
 }
+
