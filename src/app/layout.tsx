@@ -3,7 +3,6 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { cn } from "@/lib/utils";
-import FireOverlay from "@/components/FireOverlay";
 import GlobalTimer from "@/components/GlobalTimer";
 
 const geistSans = localFont({
@@ -39,28 +38,6 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {/* Pre-hydration black cover — renders as raw HTML before React, prevents any white/content flash */}
-        <div
-          id="fire-precover"
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 99999,
-            background: "#000",
-            pointerEvents: "none",
-          }}
-        />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){
-              setTimeout(function(){
-                var e=document.getElementById('fire-precover');
-                if(e){e.style.transition='opacity 0.3s';e.style.opacity='0';setTimeout(function(){e.remove()},400)}
-              },4000)
-            })();`,
-          }}
-        />
-        <FireOverlay />
         <GlobalTimer />
         {children}
         <Toaster theme="dark" position="bottom-right" richColors />

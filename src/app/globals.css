@@ -161,6 +161,24 @@ select:-webkit-autofill {
   animation: ambient-pulse 6s ease-in-out infinite;
 }
 
+/* Minimal Fog Drift Animation */
+@keyframes drift {
+  0% { transform: translateX(-5%) translateY(0) scale(1.05); }
+  50% { transform: translateX(5%) translateY(-2%) scale(1.0); }
+  100% { transform: translateX(-5%) translateY(0) scale(1.05); }
+}
+@keyframes drift-reverse {
+  0% { transform: translateX(5%) translateY(2%) scale(1.0); }
+  50% { transform: translateX(-5%) translateY(0) scale(1.05); }
+  100% { transform: translateX(5%) translateY(2%) scale(1.0); }
+}
+.animate-drift {
+  animation: drift 20s ease-in-out infinite;
+}
+.animate-drift-reverse {
+  animation: drift-reverse 25s ease-in-out infinite;
+}
+
 /* Subtle noise texture overlay */
 .noise-overlay::before {
   content: "";

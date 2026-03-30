@@ -91,6 +91,13 @@ export default function Home() {
       {/* BEAMS BACKGROUND + OVERLAYS */}
       <div className="absolute top-0 inset-x-0 h-[100vh] z-0 pointer-events-none overflow-hidden">
         <BackgroundBeams />
+        
+        {/* Minimal Fog Effect */}
+        <div className="absolute inset-0 mix-blend-screen opacity-40 select-none">
+          <div className="absolute -top-[20%] -left-[10%] w-[70%] h-[60%] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.08)_0%,transparent_70%)] blur-[80px] animate-drift" />
+          <div className="absolute top-[10%] -right-[10%] w-[60%] h-[70%] bg-[radial-gradient(ellipse_at_center,rgba(251,146,60,0.04)_0%,transparent_70%)] blur-[90px] animate-drift-reverse" />
+        </div>
+
         {/* Dark overlay to reduce brightness and ensure text is readable */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/60" />
         {/* Soft fade out at bottom to smoothly blend into the rest of the page */}
@@ -99,6 +106,7 @@ export default function Home() {
 
       {/* HERO SECTION */}
       <motion.div 
+        data-hero-section
         initial="hidden" animate="visible"
         className="relative z-10 max-w-5xl w-full text-center mb-40 flex flex-col items-center"
       >
