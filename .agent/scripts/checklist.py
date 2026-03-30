@@ -26,6 +26,10 @@ import argparse
 from pathlib import Path
 from typing import List, Tuple, Optional
 
+# Fix Windows Unicode printing issues
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+
 # ANSI colors for terminal output
 class Colors:
     HEADER = '\033[95m'
