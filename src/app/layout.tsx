@@ -20,6 +20,12 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "HackArena 2K26 — Code. Compete. Conquer.",
   description: "HackArena 2K26: Real-time monitored hackathon system with automated anti-cheat, live deployment scoring, and strike enforcement.",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/hackarena-logo.png",
+  },
   openGraph: {
     title: "HackArena 2K26",
     description: "HackArena 2K26: Real-time monitored hackathon system.",
