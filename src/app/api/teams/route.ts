@@ -16,9 +16,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { team_name, repo_url, category, problem_statement } = await request.json();
+    const { team_name, repo_url, email, password, domain, prob_statement, team_leader_name, participant_names } = await request.json();
 
-    if (!team_name || !repo_url) {
+    if (!team_name || !repo_url || !email || !password || !domain || !prob_statement) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
@@ -51,13 +51,42 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Team name or repository already registered" }, { status: 400 });
     }
 
+    // 1. Create Supabase Auth User
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { team_name }
+    });
+
+    if (authError || !authData.user) {
+      // Return a 400 if user exists or password is too weak
+      return NextResponse.json({ error: authError?.message || "Failed to create authentication user" }, { status: 400 });
+    }
+
+    // 2. Insert into teams table with auth_user_id
     const { data, error } = await supabase
       .from("teams")
-      .insert([{ team_name, repo_url, status: "active", strike_count: 0, last_push: null }])
+      .insert([{ 
+        team_name, 
+        repo_url, 
+        category: domain,
+        problem_statement: prob_statement,
+        team_leader_name: team_leader_name || null,
+        participant_names: participant_names || [],
+        status: "active", 
+        strike_count: 0, 
+        last_push: null,
+        auth_user_id: authData.user.id
+      }])
       .select()
       .single();
 
     if (error) {
+      // If team insert fails, we should ideally delete the auth user to prevent orphans, 
+      // but keeping it simple as per instructions (minimum interference).
+      // Attempt cleanup
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
       throw error;
     }
 

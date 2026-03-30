@@ -123,9 +123,9 @@ export default function LiveProjectorPage() {
           <div className={cn(
             "flex-1 rounded-3xl border border-white/5 bg-slate-900/40 backdrop-blur-md shadow-2xl flex flex-col items-center justify-center p-12 transition-all duration-1000",
             isLowTime ? "bg-rose-950/20 border-rose-500/20" : ""
-          )}>
-            <div className="text-center space-y-4">
-              <span className="text-sm md:text-xl font-bold uppercase tracking-[0.2em] text-cyan-400">
+          )}>                        <div className="text-center space-y-4 relative">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.08),transparent_60%)] pointer-events-none" />
+              <span className="text-sm md:text-xl font-bold uppercase tracking-[0.2em] text-cyan-400 relative z-10">
                 {timerState.status === 'paused' ? 'Hackathon Paused' : 'Official Time Remaining'}
               </span>
               <div className={cn(
@@ -149,7 +149,7 @@ export default function LiveProjectorPage() {
             <div className="grid grid-cols-5 gap-4">
               {topTeams.map((team, idx) => (
                 <div key={team.id} className={cn(
-                  "p-4 rounded-2xl flex flex-col items-center justify-center text-center gap-2 border",
+                  "p-4 rounded-2xl flex flex-col items-center justify-center text-center gap-2 border transition-all duration-300 hover:-translate-y-1 cursor-default",
                   idx === 0 ? "bg-amber-500/10 border-amber-500/30 scale-105 transform transition-transform" : "bg-slate-800/50 border-white/5",
                   idx === 1 ? "bg-slate-300/10 border-slate-300/30" : "",
                   idx === 2 ? "bg-orange-700/10 border-orange-700/30" : ""

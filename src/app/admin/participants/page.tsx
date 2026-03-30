@@ -129,7 +129,7 @@ export default function ParticipantsPage() {
             {filtered.map((team, index) => (
               <div
                 key={team.id}
-                className="group relative overflow-hidden rounded-2xl bg-slate-900/50 border border-white/5 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:border-white/10"
+                className="group relative overflow-hidden rounded-2xl bg-slate-900/50 border border-white/5 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(6,182,212,0.08)] hover:border-white/10"
               >
                 {/* Index badge */}
                 <div className="absolute top-0 right-0 m-3">
@@ -160,7 +160,7 @@ export default function ParticipantsPage() {
                   {/* Last Push */}
                   <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
                     <Clock className="w-3.5 h-3.5" />
-                    Last push {formatDistanceToNow(new Date(team.last_push), { addSuffix: true })}
+                    Last push {team.last_push ? formatDistanceToNow(new Date(team.last_push), { addSuffix: true }) : "N/A"}
                   </div>
 
                   {/* GitHub Link */}

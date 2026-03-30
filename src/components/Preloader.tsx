@@ -45,11 +45,19 @@ export default function Preloader() {
             {/* Pulsing ambient glow beneath the logo */}
             <motion.div
               animate={{ 
-                scale: [1, 1.15, 1],
-                opacity: [0.15, 0.4, 0.15]
+                scale: [1, 1.2, 1],
+                opacity: [0.15, 0.45, 0.15]
               }}
               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
               className="absolute w-[300px] h-[300px] bg-amber-500/30 blur-[60px] rounded-full z-0"
+            />
+            <motion.div
+              animate={{ 
+                scale: [1.1, 1, 1.1],
+                opacity: [0.1, 0.3, 0.1]
+              }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute w-[250px] h-[250px] bg-rose-500/20 blur-[80px] rounded-full z-0"
             />
             
             {/* The Logo. Using 'screen' blend mode removes black backgrounds natively on dark themes */}
@@ -80,6 +88,9 @@ export default function Preloader() {
             </div>
             <p className="text-[10px] font-mono font-bold tracking-[0.3em] text-cyan-400 uppercase drop-shadow-[0_0_5px_rgba(34,211,238,0.4)]">
               Igniting Neural Engine
+            </p>
+            <p className="text-[9px] font-medium tracking-[0.15em] text-slate-500 mt-1">
+              Engineered by Shreyas Ugargol
             </p>
           </motion.div>
         </motion.div>

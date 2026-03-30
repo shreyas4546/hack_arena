@@ -134,7 +134,7 @@ export default function AdminJudgingMatrix() {
                     const isEdited = localScores[team.id] !== (team.judge_score !== null ? team.judge_score.toString() : "");
 
                     return (
-                      <tr key={team.id} className={cn("hover:bg-white/[0.02] transition-colors", team.status === "disqualified" && "opacity-50 grayscale")}>
+                      <tr key={team.id} className={cn("hover:bg-white/[0.04] transition-colors even:bg-white/[0.015]", team.status === "disqualified" && "opacity-50 grayscale")}>
                         {/* Team Name */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
@@ -168,7 +168,7 @@ export default function AdminJudgingMatrix() {
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-1">
                             <span className="text-slate-300">
-                               Last push: <strong className="text-white">{formatDistanceToNow(new Date(team.last_push))} ago</strong>
+                               Last push: <strong className="text-white">{team.last_push ? formatDistanceToNow(new Date(team.last_push)) + " ago" : "N/A"}</strong>
                             </span>
                             <span className="text-xs text-slate-500 flex items-center gap-1">
                                Deploy: <span className={team.deployment_status === 'live' ? "text-emerald-400" : "text-amber-400"}>{team.deployment_status}</span>
