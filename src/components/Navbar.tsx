@@ -134,7 +134,7 @@ export default function Navbar() {
 
           {/* Right: Auth Actions */}
           <div className="hidden md:flex items-center gap-3">
-            <Link href="/admin">
+            <Link href="/admin" prefetch={false}>
               <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white hover:bg-white/10 hover:shadow-[0_0_20px_rgba(255,255,255,0.1)] text-[11px] font-bold uppercase tracking-wider cursor-pointer h-9 px-4 transition-all duration-300 hover:scale-105 rounded-xl">
                 Admin
               </Button>
@@ -196,7 +196,7 @@ export default function Navbar() {
             </Link>
           ))}
           <div className="border-t border-white/[0.06] pt-2 mt-2 space-y-1">
-            <Link href="/admin" onClick={() => setMobileOpen(false)}>
+            <Link href="/admin" onClick={() => setMobileOpen(false)} prefetch={false}>
               <div className="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-500 hover:text-white hover:bg-white/[0.06]">Admin</div>
             </Link>
             
