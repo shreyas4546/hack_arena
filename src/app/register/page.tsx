@@ -9,29 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Trophy, ArrowLeft, Github, CheckCircle2, Lock, Users, Target, BookOpen } from "lucide-react";
 import Link from "next/link";
 
-const problemStatements: Record<string, string[]> = {
-  "FinTech": [
-    "Subscription Tracker & Auto-Cancel System",
-    "Multi-Bank Dashboard Web App"
-  ],
-  "EdTech": [
-    "Collaborative Study Rooms (Virtual)",
-    "Online Coding Assessment Platform"
-  ],
-  "Healthcare": [
-    "Digital Health Record Portal",
-    "Doctor Availability & Teleconsultation Platform"
-  ],
-  "Social Impact": [
-    "Community Issue Reporting System",
-    "Local Farmer-to-Consumer Marketplace"
-  ],
-  "Campus Solutions": [
-    "Placement Preparation Portal",
-    "Unified Campus Portal"
-  ]
-};
-const domains = Object.keys(problemStatements);
+import { problemStatements, domains } from "@/constants/problemStatements";
 
 export default function RegisterPage() {
   const [teamName, setTeamName] = useState("");
@@ -233,7 +211,7 @@ export default function RegisterPage() {
                           {domain ? "Pick a Statement..." : "Select Category first"}
                         </option>
                         {domain && problemStatements[domain].map((ps) => (
-                          <option key={ps} value={ps} className="bg-[#0e0e0e] text-white px-2 py-1">{ps}</option>
+                          <option key={ps.title} value={ps.title} className="bg-[#0e0e0e] text-white px-2 py-1">{ps.title}</option>
                         ))}
                       </select>
                       <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">

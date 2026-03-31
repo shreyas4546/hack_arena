@@ -10,28 +10,7 @@ import { ArrowLeft, Rocket, Lock } from "lucide-react";
 import Link from "next/link";
 import PremiumCard from "@/components/PremiumCard";
 
-const PROBLEMS = {
-  "FinTech": [
-    "Subscription Tracker & Auto-Cancel System",
-    "Multi-Bank Dashboard Web App"
-  ],
-  "EdTech": [
-    "Collaborative Study Rooms (Virtual)",
-    "Online Coding Assessment Platform"
-  ],
-  "Healthcare": [
-    "Digital Health Record Portal",
-    "Doctor Availability & Teleconsultation Platform"
-  ],
-  "Social Impact": [
-    "Community Issue Reporting System",
-    "Local Farmer-to-Consumer Marketplace"
-  ],
-  "Campus Solutions": [
-    "Placement Preparation Portal",
-    "Unified Campus Portal"
-  ]
-};
+import { problemStatements } from "@/constants/problemStatements";
 
 export default function SubmitPage() {
   const [teamName, setTeamName] = useState("");
@@ -176,7 +155,7 @@ export default function SubmitPage() {
                     <SelectValue placeholder="Select a Category" />
                   </SelectTrigger>
                   <SelectContent className="bg-[#0e0e0e] border-white/[0.08] text-white rounded-xl">
-                    {Object.keys(PROBLEMS).map((cat) => (
+                    {Object.keys(problemStatements).map((cat) => (
                       <SelectItem key={cat} value={cat} className="focus:bg-orange-500/15 focus:text-orange-100">{cat}</SelectItem>
                     ))}
                   </SelectContent>
@@ -189,8 +168,8 @@ export default function SubmitPage() {
                     <SelectValue placeholder={category ? "Select a Problem Statement" : "Select Category First"} />
                   </SelectTrigger>
                   <SelectContent className="bg-[#0e0e0e] border-white/[0.08] text-white rounded-xl">
-                    {category ? (PROBLEMS as any)[category].map((prob: string) => (
-                      <SelectItem key={prob} value={prob} className="focus:bg-orange-500/15 focus:text-orange-100">{prob}</SelectItem>
+                    {category ? problemStatements[category].map((prob) => (
+                      <SelectItem key={prob.title} value={prob.title} className="focus:bg-orange-500/15 focus:text-orange-100">{prob.title}</SelectItem>
                     )) : null}
                   </SelectContent>
                 </Select>
