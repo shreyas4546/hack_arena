@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft, Users, Github, Search, CheckCircle2,
-  XCircle, AlertTriangle, Clock, Hash
+  XCircle, AlertTriangle, Clock, Hash,
+  Key, Mail, Loader2
 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -18,17 +20,23 @@ type Team = {
   last_push: string;
   status: "active" | "warning" | "inactive" | "disqualified";
   strike_count: number;
+  email?: string;
 };
 
 export default function ParticipantsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  
+  // Account Recovery State
+  const [resetTarget, setResetTarget] = useState<Team | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     const fetchTeams = async () => {
       try {
-        const res = await fetch("/api/teams");
+        const res = await fetch("/api/admin/participants-with-auth");
         if (res.ok) setTeams(await res.json());
       } catch (e) {
         console.error("Failed to fetch participants", e);
@@ -38,6 +46,29 @@ export default function ParticipantsPage() {
     };
     fetchTeams();
   }, []);
+
+  const handleResetPassword = async () => {
+    if (!resetTarget || !newPassword.trim()) return;
+    setResetting(true);
+    const toastId = toast.loading("Resetting password...");
+    try {
+      const res = await fetch("/api/admin/account-recovery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ team_id: resetTarget.id, new_password: newPassword.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      
+      toast.success(`Password reset successful for ${resetTarget.team_name}`, { id: toastId });
+      setResetTarget(null);
+      setNewPassword("");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reset password", { id: toastId });
+    } finally {
+      setResetting(false);
+    }
+  };
 
   const filtered = search.trim()
     ? teams.filter(t => t.team_name.toLowerCase().includes(search.toLowerCase()))
@@ -186,12 +217,91 @@ export default function ParticipantsPage() {
                       Deployed — View Live
                     </a>
                   )}
+
+                  {/* Account Recovery Actions */}
+                  <div className="pt-3 mt-3 border-t border-white/5 space-y-2">
+                    <div className="flex items-center gap-2 text-[11px] font-medium text-slate-400 bg-slate-950/50 p-2 rounded-lg border border-white/5 overflow-hidden">
+                      <Mail className="w-3.5 h-3.5 shrink-0 text-cyan-400" />
+                      <span className="truncate flex-1">{team.email || "Loading..."}</span>
+                    </div>
+                    <button
+                      onClick={() => setResetTarget(team)}
+                      className="flex items-center justify-center gap-2 w-full p-2 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 hover:border-indigo-500/40 transition-all duration-300 font-bold text-[11px]"
+                    >
+                      <Key className="w-3 h-3" />
+                      Reset Password
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Password Reset Modal */}
+      {resetTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-slate-900 border border-indigo-500/30 rounded-2xl shadow-[0_0_50px_rgba(99,102,241,0.15)] p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center">
+                <Key className="w-5 h-5 text-indigo-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-white">Account Recovery</h3>
+                <p className="text-xs text-slate-400">Force reset the password for this team.</p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-950 border border-white/5 space-y-2">
+              <p className="text-sm font-bold text-white">{resetTarget.team_name}</p>
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <Mail className="w-3.5 h-3.5 text-cyan-400" />
+                <span>{resetTarget.email}</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-sm font-bold text-slate-300 uppercase tracking-widest">New Password</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="text"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="e.g. HackArena2K26!"
+                  className="w-full bg-slate-950/50 border border-white/10 rounded-xl p-3 text-sm text-white focus-visible:ring-indigo-500/50"
+                  autoComplete="off"
+                />
+                <button
+                  onClick={() => setNewPassword(Math.random().toString(36).slice(-6) + "@Hck!")}
+                  className="px-3 py-2 text-xs font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 rounded-xl border border-indigo-500/30 transition-colors whitespace-nowrap"
+                >
+                  Generate
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-500">Must be at least 6 characters. The participant will be immediately logged out of all active sessions.</p>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                onClick={() => { setResetTarget(null); setNewPassword(""); }}
+                className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-300 bg-slate-800 rounded-xl border border-white/10 hover:bg-slate-700 transition-colors"
+                disabled={resetting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResetPassword}
+                disabled={!newPassword.trim() || newPassword.length < 6 || resetting}
+                className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl border border-indigo-400/50 shadow-[0_0_15px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
+                {resetting ? "Resetting..." : "Reset"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
