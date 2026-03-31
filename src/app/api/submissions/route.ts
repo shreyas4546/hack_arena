@@ -64,9 +64,13 @@ export async function POST(request: Request) {
     }
 
     // 3. Validate Public GitHub Repo
-    const repoRes = await fetch(repo_url);
-    if (!repoRes.ok) {
-      return NextResponse.json({ error: "Repository is not accessible or not public." }, { status: 400 });
+    try {
+      const repoRes = await fetch(repo_url, { signal: AbortSignal.timeout(5000) });
+      if (!repoRes.ok) {
+        return NextResponse.json({ error: "Repository is not accessible or not public." }, { status: 400 });
+      }
+    } catch (e) {
+      return NextResponse.json({ error: "Repository fetch timed out or failed." }, { status: 400 });
     }
 
     // 4. Validate Deployment URL (lenient - accept redirects, don't block on fetch failure)
@@ -74,6 +78,7 @@ export async function POST(request: Request) {
       const deployRes = await fetch(deployment_url, { 
         method: 'GET',
         redirect: 'follow',
+        signal: AbortSignal.timeout(5000),
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 (compatible; HackArena/1.0)'
         }

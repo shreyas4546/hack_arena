@@ -17,6 +17,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { CommandPresets } from "./CommandPresets";
+import { Tooltip } from "./Tooltip";
+import PremiumCard from "@/components/PremiumCard";
 
 // Dynamic import for Recharts (SSR-incompatible)
 // @ts-ignore
@@ -33,10 +36,11 @@ type Team = {
   deployment_status: "live" | "slow" | "down" | "pending";
   response_time: number;
   score: number;
+  judge_score: number;
   created_at: string;
 };
 
-type SortField = "team_name" | "last_push" | "strike_count" | "status" | "score" | "deployment_status";
+type SortField = "team_name" | "last_push" | "strike_count" | "status" | "score" | "judge_score" | "deployment_status";
 type SortOrder = "asc" | "desc";
 
 type TimerState = {
@@ -311,7 +315,6 @@ export default function AdminDashboard() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button onClick={() => window.location.href = "/admin/participants"} variant="outline" className="bg-slate-900/50 border-white/10 text-slate-300 hover:bg-cyan-900/30 hover:text-cyan-300 hover:border-cyan-500/50 transition-all rounded-xl text-xs h-9"><Users className="w-3.5 h-3.5 mr-1.5" />Participants</Button>
-            <Button onClick={() => window.location.href = "/admin/projects"} variant="outline" className="bg-slate-900/50 border-white/10 text-slate-300 hover:bg-indigo-900/40 hover:text-indigo-300 hover:border-indigo-500/50 transition-all rounded-xl text-xs h-9"><Layers className="w-3.5 h-3.5 mr-1.5" />Gallery</Button>
             <Button onClick={() => window.location.href = "/admin/submissions"} variant="outline" className="bg-slate-900/50 border-white/10 text-slate-300 hover:bg-amber-900/30 hover:text-amber-300 hover:border-amber-500/50 transition-all rounded-xl text-xs h-9"><Trophy className="w-3.5 h-3.5 mr-1.5" />Submissions</Button>
             <Button onClick={() => window.location.href = "/admin/scores"} variant="outline" className="bg-slate-900/50 border-white/10 text-slate-300 hover:bg-emerald-900/30 hover:text-emerald-300 hover:border-emerald-500/50 transition-all rounded-xl text-xs h-9"><Gavel className="w-3.5 h-3.5 mr-1.5" />Judging Matrix</Button>
             
@@ -336,6 +339,9 @@ export default function AdminDashboard() {
         {/* ── CLOCK SYSTEM ── */}
         <HackathonClockPanel onManualCheck={handleTriggerCron} triggering={triggering} lastChecked={lastChecked} timerState={timerState} setTimerState={setTimerState} />
 
+        {/* ── SMART PRESETS ── */}
+        <CommandPresets onRefresh={fetchDashboardData} />
+
         {/* ── STATS ── */}
             <section className="grid grid-cols-2 lg:grid-cols-5 gap-3">
               <StatCard title="Total Teams" value={stats.total} loading={loading} icon={Users} glowColor="rgba(255,255,255,0.08)" iconColor="text-slate-200" />
@@ -355,40 +361,46 @@ export default function AdminDashboard() {
 
             {/* ── LEADERBOARD + GRAPH ── */}
             <section className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-              {/* Leaderboard */}
-              <div className="lg:col-span-2 rounded-2xl bg-slate-900/40 border border-white/5 backdrop-blur-md overflow-hidden flex flex-col">
+              {/* Leaderboard Card */}
+              <div className="lg:col-span-2 rounded-2xl bg-slate-900/40 border border-white/5 backdrop-blur-md overflow-hidden flex flex-col h-[400px]">
                 <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between shrink-0">
-                  <h2 className="text-sm font-bold text-white flex items-center gap-2"><Crown className="w-4 h-4 text-amber-400" /> Leaderboard</h2>
-                  <span className="text-[10px] text-slate-500 uppercase tracking-widest font-medium">Score /10</span>
+                  <div className="flex items-center gap-2">
+                    <Trophy className="w-4 h-4 text-amber-400" />
+                    <h2 className="text-sm font-bold text-white tracking-tight">Live Intelligence Leaderboard</h2>
+                  </div>
+                  <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[10px] py-0.5 px-2 uppercase font-black">Top 5</Badge>
                 </div>
-                <div className="divide-y divide-white/[0.03] overflow-y-auto flex-1 max-h-[380px] custom-scrollbar">
-                  {loading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <div key={i} className="flex items-center gap-3 px-5 py-3.5 animate-pulse">
-                        <div className="w-7 h-7 rounded-full bg-slate-800" />
-                        <div className="flex-1 space-y-1.5"><div className="h-3.5 w-28 bg-slate-800 rounded" /><div className="h-2.5 w-16 bg-slate-800/60 rounded" /></div>
-                        <div className="w-10 h-4 bg-slate-800 rounded" />
-                      </div>
-                    ))
-                  ) : leaderboard.length === 0 ? (
-                    <div className="p-10 text-center text-slate-500 text-sm flex flex-col items-center gap-2">
-                      <Users className="w-8 h-8 text-slate-700" />
-                      <p>No teams to rank yet</p>
-                    </div>
-                  ) : (
-                    leaderboard.map((team, i) => (
-                      <div key={team.id} className={cn("flex items-center gap-3 px-5 py-3 transition-all duration-200 hover:bg-white/[0.03] group cursor-default", i < 3 && "relative")}>
-                        {i < 3 && <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" style={{ background: `linear-gradient(90deg, ${i === 0 ? "rgba(251,191,36,0.06)" : i === 1 ? "rgba(148,163,184,0.04)" : "rgba(217,119,6,0.04)"}, transparent 60%)` }} />}
-                        <RankBadge rank={i + 1} />
-                        <div className="flex-1 min-w-0 relative z-10">
-                          <p className={cn("text-sm font-semibold truncate transition-colors", i === 0 ? "text-amber-200" : "text-slate-200")}>{team.team_name}</p>
-                          <p className="text-[11px] text-slate-500 mt-0.5">{team.last_push ? formatDistanceToNow(new Date(team.last_push), { addSuffix: true }) : "Registered"}</p>
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
+                  {[...teams]
+                    .filter(t => t.status !== "disqualified")
+                    .sort((a, b) => (b.score || 0) - (a.score || 0))
+                    .slice(0, 5)
+                    .map((team, idx) => (
+                      <div key={team.id} className={cn(
+                        "flex items-center justify-between p-3 rounded-xl border transition-all group",
+                        idx === 0 ? "bg-amber-500/10 border-amber-500/20" : "bg-slate-950/40 border-white/5"
+                      )}>
+                        <div className="flex items-center gap-3">
+                          <span className={cn(
+                            "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black border",
+                            idx === 0 ? "bg-amber-500 text-slate-950 border-amber-400" : "bg-slate-800 text-slate-400 border-white/5"
+                          )}>
+                            {idx + 1}
+                          </span>
+                          <span className="font-bold text-slate-200 group-hover:text-white transition-colors truncate max-w-[140px]">{team.team_name}</span>
                         </div>
-                        <StatusDot status={team.status} />
-                        <span className={cn("text-sm font-bold tabular-nums w-10 text-right relative z-10", team.score >= 8 ? "text-emerald-400" : team.score >= 5 ? "text-amber-400" : "text-rose-400")}>{team.score}</span>
+                        <div className="flex items-center gap-3">
+                           <div className="flex flex-col items-end">
+                              <span className="text-xs font-black text-amber-400">{team.score || 0}</span>
+                              <span className="text-[8px] uppercase tracking-tighter text-slate-500 font-bold">Points</span>
+                           </div>
+                           <ActivityHeat level={getActivityLevel(team)} />
+                        </div>
                       </div>
-                    ))
-                  )}
+                    ))}
+                </div>
+                <div className="px-4 py-2 bg-slate-950/30 border-t border-white/5 text-center">
+                   <p className="text-[9px] text-slate-500 font-medium italic">Ranking updated every 60s via behavioral analytics</p>
                 </div>
               </div>
 
@@ -511,7 +523,8 @@ export default function AdminDashboard() {
                         <th className="px-4 py-3 font-medium text-center">Activity</th>
                         <SortableHeader label="Status" field="status" currentSort={sortField} sortOrder={sortOrder} onClick={handleSort} />
                         <SortableHeader label="Strikes" field="strike_count" currentSort={sortField} sortOrder={sortOrder} onClick={handleSort} className="text-center" />
-                        <SortableHeader label="Score" field="score" currentSort={sortField} sortOrder={sortOrder} onClick={handleSort} className="text-center" />
+                        <SortableHeader label="Judge" field="judge_score" currentSort={sortField} sortOrder={sortOrder} onClick={handleSort} className="text-center text-emerald-400" />
+                        <SortableHeader label="Final" field="score" currentSort={sortField} sortOrder={sortOrder} onClick={handleSort} className="text-center" />
                         <th className="px-4 py-3 font-medium text-center">Actions</th>
                       </tr>
                     </thead>
@@ -541,10 +554,29 @@ export default function AdminDashboard() {
                             ) : <span className="text-slate-600 text-xs italic">Pending</span>}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-slate-400 text-xs group-hover:text-slate-300 transition-colors">{team.last_push ? formatDistanceToNow(new Date(team.last_push), { addSuffix: true }) : <span className="text-slate-600 italic">Awaiting first push</span>}</td>
-                          <td className="px-4 py-3 whitespace-nowrap"><ActivityHeat level={getActivityLevel(team)} /></td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <Tooltip content={
+                              <div className="space-y-1">
+                                <p className="font-bold text-white border-b border-white/10 pb-1 mb-1 italic">Activity Pulse</p>
+                                <p>High: Last push &lt; 30m</p>
+                                <p>Med: Last push &lt; 60m</p>
+                                <p>Low: Last push &lt; 120m</p>
+                                <p className="text-rose-400">Dead: No recent activity</p>
+                              </div>
+                            }>
+                              <ActivityHeat level={getActivityLevel(team)} />
+                            </Tooltip>
+                          </td>
                           <td className="px-4 py-3 whitespace-nowrap"><StatusBadge status={team.status} /></td>
-                          <td className="px-4 py-3 whitespace-nowrap text-center"><span className={cn("inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold border transition-colors", team.strike_count === 0 ? "bg-slate-800 text-slate-300 border-white/10" : team.strike_count === 1 ? "bg-amber-500/20 text-amber-400 border-amber-500/30" : team.strike_count === 2 ? "bg-orange-500/20 text-orange-400 border-orange-500/30" : "bg-rose-500/20 text-rose-400 border-rose-500/30")}>{team.strike_count}</span></td>
-                          <td className="px-4 py-3 whitespace-nowrap text-center font-bold text-white">{team.score}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                            <Tooltip content="Each strike penalizes the automated behavior score.">
+                              <span className={cn("inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold border transition-colors", team.strike_count === 0 ? "bg-slate-800 text-slate-300 border-white/10" : team.strike_count === 1 ? "bg-amber-500/20 text-amber-400 border-amber-500/30" : team.strike_count === 2 ? "bg-orange-500/20 text-orange-400 border-orange-500/30" : "bg-rose-500/20 text-rose-400 border-rose-500/30")}>{team.strike_count}</span>
+                            </Tooltip>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center font-black text-emerald-400">{team.judge_score || 0}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center bg-white/5">
+                            <span className="font-bold text-white text-base">{team.score || 0}</span>
+                          </td>
                           <td className="px-4 py-3 whitespace-nowrap text-center">
                             {team.status === "disqualified" ? (
                               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/10 text-rose-400 text-xs font-bold border border-rose-500/20">❌ DQ&apos;d</span>
@@ -641,28 +673,29 @@ function StatusDot({ status }: { status: Team["status"] }) {
 
 function InsightCard({ icon, label, value, glow }: { icon: React.ReactNode; label: string; value: string; glow: string }) {
   return (
-    <div className="group relative overflow-hidden rounded-xl bg-slate-900/40 border border-white/5 p-4 backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-white/10">
-      <div className="absolute -inset-px opacity-0 group-hover:opacity-100 transition-opacity blur-xl pointer-events-none" style={{ background: `radial-gradient(circle at 50% 100%, ${glow}, transparent 70%)` }} />
-      <div className="relative z-10 flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-slate-950/50 border border-white/5 shrink-0">{icon}</div>
+    <PremiumCard glowColor={glow} className="p-4">
+      <div className="flex items-center gap-3">
+        <div className="p-2 rounded-lg bg-slate-950/50 border border-white/5 shrink-0 group-hover:scale-110 transition-transform duration-300">{icon}</div>
         <div className="min-w-0">
           <p className="text-[11px] text-slate-500 font-medium uppercase tracking-wider">{label}</p>
-          <p className="text-sm font-bold text-white truncate mt-0.5">{value}</p>
+          <p className="text-sm font-bold text-white truncate mt-0.5 group-hover:-translate-y-px transition-transform duration-300">{value}</p>
         </div>
       </div>
-    </div>
+    </PremiumCard>
   );
 }
 
 function StatCard({ title, value, loading, icon: Icon, glowColor, iconColor }: any) {
   return (
-    <div className="group relative overflow-hidden rounded-xl bg-slate-900/40 border border-white/5 p-4 backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-white/10">
-      <div className="absolute -inset-px opacity-0 group-hover:opacity-100 transition-opacity blur-xl pointer-events-none" style={{ background: `radial-gradient(circle at 50% 100%, ${glowColor}, transparent 70%)` }} />
-      <div className="relative z-10 flex justify-between items-center">
-        <div className="space-y-1"><p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">{title}</p>{loading ? <div className="h-8 w-12 bg-slate-800 rounded animate-pulse" /> : <p className="text-3xl font-extrabold text-white tabular-nums">{value}</p>}</div>
-        <div className="p-2.5 rounded-xl bg-slate-950/50 border border-white/5">{loading ? <div className="w-5 h-5 bg-slate-800 rounded animate-pulse" /> : <Icon className={cn("w-5 h-5", iconColor)} />}</div>
+    <PremiumCard glowColor={glowColor} className="p-4">
+      <div className="flex justify-between items-center">
+        <div className="space-y-1">
+          <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">{title}</p>
+          {loading ? <div className="h-8 w-12 bg-slate-800 rounded animate-pulse" /> : <p className="text-3xl font-extrabold text-white tabular-nums group-hover:-translate-y-px transition-transform duration-300">{value}</p>}
+        </div>
+        <div className="p-2.5 rounded-xl bg-slate-950/50 border border-white/5 group-hover:scale-110 group-hover:border-white/10 transition-all duration-300">{loading ? <div className="w-5 h-5 bg-slate-800 rounded animate-pulse" /> : <Icon className={cn("w-5 h-5", iconColor)} />}</div>
       </div>
-    </div>
+    </PremiumCard>
   );
 }
 

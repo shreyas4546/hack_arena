@@ -3,7 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { cn } from "@/lib/utils";
-import Preloader from "@/components/Preloader";
+import FireOverlay from "@/components/FireOverlay";
 import GlobalTimer from "@/components/GlobalTimer";
 
 const geistSans = localFont({
@@ -20,6 +20,12 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "HackArena 2K26 — Code. Compete. Conquer.",
   description: "HackArena 2K26: Real-time monitored hackathon system with automated anti-cheat, live deployment scoring, and strike enforcement.",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/hackarena-logo.png",
+  },
   openGraph: {
     title: "HackArena 2K26",
     description: "HackArena 2K26: Real-time monitored hackathon system.",
@@ -35,11 +41,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={geistSans.variable}>
+    <html lang="en" className={`${geistSans.variable} scroll-smooth`} suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Preloader />
+        {/* Pre-hydration black cover — renders as raw HTML before React. Removed by FireOverlay when WebGL is ready */}
+        <div
+          id="fire-precover"
+          style={{ position: "fixed", inset: 0, zIndex: 99999, background: "#000", pointerEvents: "none" }}
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){
+              setTimeout(function(){
+                var e=document.getElementById('fire-precover');
+                if(e){e.style.transition='opacity 0.3s';e.style.opacity='0';setTimeout(function(){e.remove()},400)}
+              },4000)
+            })();`,
+          }}
+        />
+        <FireOverlay />
         <GlobalTimer />
         {children}
         <Toaster theme="dark" position="bottom-right" richColors />

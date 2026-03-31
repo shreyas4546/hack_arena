@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Timer, Trophy, ShieldAlert, Clock } from "lucide-react";
+import { Timer, Trophy, ShieldAlert, Clock, Coffee } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type TimerState = {
@@ -9,6 +9,8 @@ type TimerState = {
   startTime: Date;
   accumulatedMs: number;
   durationHours: number;
+  submissionsLocked: boolean;
+  globalAnnouncement: string;
 };
 
 export default function FullScreenTimer() {
@@ -23,11 +25,13 @@ export default function FullScreenTimer() {
         const res = await fetch("/api/settings");
         if (res.ok) {
           const settings = await res.json();
-          setTimerState({
+            setTimerState({
             status: settings.timer_status || "unset",
             startTime: settings.timer_start_time ? new Date(settings.timer_start_time) : new Date(),
             accumulatedMs: Number(settings.timer_accumulated_ms) || 0,
             durationHours: Number(settings.timer_duration_hours) || 24,
+            submissionsLocked: settings.submissions_locked || false,
+            globalAnnouncement: settings.global_announcement || "",
           });
         }
       } catch (e) {
@@ -113,6 +117,7 @@ export default function FullScreenTimer() {
 
   const isLowTime = remainingMs < 60 * 60 * 1000 && remainingMs > 0; // less than 1 hour
   const isOver = remainingMs <= 0;
+  const isLunchBreak = timerState.submissionsLocked && timerState.globalAnnouncement.toLowerCase().includes("lunch");
 
   return (
     <main className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center relative overflow-hidden font-sans">
@@ -120,42 +125,53 @@ export default function FullScreenTimer() {
       <div className="fixed inset-0 z-0">
         <div className={cn(
           "absolute inset-0 transition-opacity duration-1000",
-          isLowTime ? "opacity-30 bg-rose-950/20" : "opacity-10 bg-cyan-950/10"
+          isLunchBreak ? "opacity-20 bg-amber-950/30" : isLowTime ? "opacity-30 bg-rose-950/20" : "opacity-10 bg-cyan-950/10"
         )} />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.1),transparent_70%)] animate-pulse" />
+        <div 
+          className="absolute inset-0 animate-pulse transition-colors duration-1000" 
+          style={{ backgroundImage: `radial-gradient(circle at 50% 50%, ${isLunchBreak ? 'rgba(245,158,11,0.15)' : isLowTime ? 'rgba(244,63,94,0.1)' : 'rgba(6,182,212,0.1)'}, transparent 70%)` }}
+        />
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-150 contrast-150 pointer-events-none" />
       </div>
 
       {/* Decorative Orbs */}
       <div className={cn(
         "absolute top-1/4 -left-20 w-80 h-80 rounded-full blur-[120px] transition-colors duration-1000",
-        isLowTime ? "bg-rose-500/10" : "bg-cyan-500/10"
+        isLunchBreak ? "bg-amber-500/20" : isLowTime ? "bg-rose-500/10" : "bg-cyan-500/10"
       )} />
       <div className={cn(
         "absolute bottom-1/4 -right-20 w-80 h-80 rounded-full blur-[120px] transition-colors duration-1000",
-        isLowTime ? "bg-amber-500/10" : "bg-indigo-500/10"
+        isLunchBreak ? "bg-orange-500/20" : isLowTime ? "bg-amber-500/10" : "bg-indigo-500/10"
       )} />
 
       <div className="relative z-10 w-full max-w-7xl px-8 flex flex-col items-center animate-in fade-in zoom-in duration-1000">
         
         {/* Header Section */}
         <div className="flex flex-col items-center gap-6 mb-10">
-          <div className="flex items-center gap-4 px-6 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-xl">
-            <Trophy className="w-6 h-6 text-amber-400" />
-            <span className="text-xl font-black uppercase tracking-[0.4em] text-white/80">HackArena Live</span>
+          <div className="flex items-center gap-4 px-6 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-xl transition-all duration-1000">
+            {isLunchBreak ? <Coffee className="w-6 h-6 text-amber-500 animate-pulse" /> : <Trophy className="w-6 h-6 text-amber-400" />}
+            <span className="text-xl font-black uppercase tracking-[0.4em] text-white/80">
+              {isLunchBreak ? "REFUEL ZONE" : "HackArena Live"}
+            </span>
           </div>
           
           <div className={cn(
             "px-8 py-3 rounded-2xl border transition-all duration-500 flex items-center gap-3",
-            timerState.status === "running" 
+            isLunchBreak 
+              ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+              : timerState.status === "running" 
               ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" 
               : timerState.status === "paused"
                 ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
                 : "bg-rose-500/10 border-rose-500/30 text-rose-400"
           )}>
-            <div className={cn("w-3 h-3 rounded-full", timerState.status === "running" && "animate-pulse bg-emerald-500", timerState.status === "paused" && "bg-amber-500", timerState.status === "stopped" && "bg-rose-500")} />
+            <div className={cn("w-3 h-3 rounded-full",
+              isLunchBreak ? "animate-bounce bg-amber-500" :
+              timerState.status === "running" ? "animate-pulse bg-emerald-500" : 
+              timerState.status === "paused" ? "bg-amber-500" : "bg-rose-500"
+            )} />
             <span className="text-2xl font-black uppercase tracking-widest">
-              {timerState.status === "running" ? "Event Active" : timerState.status === "paused" ? "Time Paused" : "Event Stopped"}
+              {isLunchBreak ? "Submissions Locked" : timerState.status === "running" ? "Event Active" : timerState.status === "paused" ? "Time Paused" : "Event Stopped"}
             </span>
           </div>
         </div>
@@ -165,13 +181,13 @@ export default function FullScreenTimer() {
           {/* Glowing Shadow */}
           <div className={cn(
             "absolute inset-0 blur-[100px] transition-colors duration-1000 opacity-50",
-            isLowTime ? "bg-rose-500" : "bg-cyan-500"
+            isLunchBreak ? "bg-amber-500" : isLowTime ? "bg-rose-500" : "bg-cyan-500"
           )} />
           
           <div className="relative flex flex-col items-center gap-4">
             <div className={cn(
-              "text-[min(18vw,280px)] font-[900] font-mono leading-none tracking-tighter tabular-nums drop-shadow-[0_0_40px_rgba(255,255,255,0.2)]",
-              isLowTime ? "text-rose-400" : "text-white"
+              "text-[min(18vw,280px)] font-[900] font-mono leading-none tracking-tighter tabular-nums drop-shadow-[0_0_40px_rgba(255,255,255,0.2)] transition-colors duration-1000",
+              isLunchBreak ? "text-amber-100" : isLowTime ? "text-rose-400" : "text-white"
             )}>
               {hours.toString().padStart(2, '0')}:
               {minutes.toString().padStart(2, '0')}:
@@ -192,7 +208,7 @@ export default function FullScreenTimer() {
             <div 
               className={cn(
                 "h-full transition-all duration-1000 ease-linear shadow-[0_0_20px_rgba(6,182,212,0.5)]",
-                isLowTime ? "bg-gradient-to-r from-rose-600 to-rose-400" : "bg-gradient-to-r from-cyan-600 to-blue-400"
+                isLunchBreak ? "bg-gradient-to-r from-amber-600 to-orange-400 !shadow-[0_0_20px_rgba(245,158,11,0.5)]" : isLowTime ? "bg-gradient-to-r from-rose-600 to-rose-400 !shadow-[0_0_20px_rgba(244,63,94,0.5)]" : "bg-gradient-to-r from-cyan-600 to-blue-400"
               )}
               style={{ width: `${Math.min(100, (elapsedMs / totalMs) * 100)}%` }}
             />

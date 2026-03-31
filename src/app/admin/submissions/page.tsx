@@ -140,7 +140,7 @@ export default function FinalSubmissionsPage() {
                       <StatusPill status={team.status} />
                       <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 font-medium">
                         <Clock className="w-3.5 h-3.5" />
-                        Last push {formatDistanceToNow(new Date(team.last_push), { addSuffix: true })}
+                        Last push {team.last_push ? formatDistanceToNow(new Date(team.last_push), { addSuffix: true }) : "N/A"}
                       </span>
                     </div>
                   </div>
