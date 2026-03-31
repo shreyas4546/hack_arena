@@ -1,28 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const PROBLEMS = {
-  "FinTech": [
-    "Subscription Tracker & Auto-Cancel System",
-    "Multi-Bank Dashboard Web App"
-  ],
-  "EdTech": [
-    "Collaborative Study Rooms (Virtual)",
-    "Online Coding Assessment Platform"
-  ],
-  "Healthcare": [
-    "Digital Health Record Portal",
-    "Doctor Availability & Teleconsultation Platform"
-  ],
-  "Social Impact": [
-    "Community Issue Reporting System",
-    "Local Farmer-to-Consumer Marketplace"
-  ],
-  "Campus Solutions": [
-    "Placement Preparation Portal",
-    "Unified Campus Portal"
-  ]
-};
+import { problemStatements } from "@/constants/problemStatements";
 
 export async function POST(request: Request) {
   try {
@@ -33,8 +12,8 @@ export async function POST(request: Request) {
     }
 
     // 0. Validate Category and Problem Statement against predefined list
-    const validProblems = (PROBLEMS as any)[category];
-    if (!validProblems || !validProblems.includes(problem_statement)) {
+    const validCategory = problemStatements[category];
+    if (!validCategory || !validCategory.find(p => p.title === problem_statement)) {
       return NextResponse.json({ error: "Invalid Category or Problem Statement selected." }, { status: 400 });
     }
 
