@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +50,17 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [registrationLocked, setRegistrationLocked] = useState(false);
   const [fetchingSettings, setFetchingSettings] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    async function checkExistingSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        router.push("/dashboard");
+      }
+    }
+    checkExistingSession();
+  }, [router]);
 
   useEffect(() => {
     async function fetchSettings() {

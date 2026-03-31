@@ -68,7 +68,7 @@ export default function LiveProjectorPage() {
   }, [now, timerState]);
 
   const topTeams = useMemo(() => {
-    return [...teams].filter(t => t.status !== "disqualified").sort((a, b) => b.score - a.score).slice(0, 5);
+    return [...teams].filter(t => t.status !== "disqualified").sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 5);
   }, [teams]);
 
   const recentActivity = useMemo(() => {

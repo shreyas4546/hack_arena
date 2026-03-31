@@ -10,7 +10,7 @@ export default async function JudgingDashboard() {
   const { data: teams, error } = await supabaseAdmin
     .from("teams")
     .select("id, team_name, repo_url, deployment_url, deployment_status, score, status")
-    .order("score", { ascending: false });
+    .order("score", { ascending: false, nullsFirst: false });
 
   if (error || !teams) {
     return (

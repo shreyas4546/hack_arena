@@ -38,7 +38,7 @@ export default function AdminJudgingMatrix() {
         const sorted = data.sort((a: Team, b: Team) => {
            if (a.status === "disqualified" && b.status !== "disqualified") return 1;
            if (b.status === "disqualified" && a.status !== "disqualified") return -1;
-           return b.score - a.score;
+           return (b.score || 0) - (a.score || 0);
         });
         setTeams(sorted);
       }

@@ -220,7 +220,7 @@ export default function AdminDashboard() {
   };
 
   const filteredAndSortedTeams = useMemo(() => {
-    let result = teams;
+    let result = [...teams];
     if (search.trim()) result = result.filter((t) => t.team_name.toLowerCase().includes(search.toLowerCase()));
     if (filter !== "all") result = result.filter((t) => t.status === filter);
     return result.sort((a, b) => {
@@ -229,7 +229,7 @@ export default function AdminDashboard() {
       else if (sortField === "last_push") c = new Date(a.last_push).getTime() - new Date(b.last_push).getTime();
       else if (sortField === "strike_count") c = a.strike_count - b.strike_count;
       else if (sortField === "status") c = a.status.localeCompare(b.status);
-      else if (sortField === "score") c = a.score - b.score;
+      else if (sortField === "score") c = (a.score || 0) - (b.score || 0);
       else if (sortField === "deployment_status") c = a.deployment_status.localeCompare(b.deployment_status);
       return sortOrder === "asc" ? c : -c;
     });
@@ -244,7 +244,7 @@ export default function AdminDashboard() {
   }), [teams]);
 
   const leaderboard = useMemo(() => {
-    return [...teams].filter((t) => t.status !== "disqualified").sort((a, b) => b.score - a.score);
+    return [...teams].filter((t) => t.status !== "disqualified").sort((a, b) => (b.score || 0) - (a.score || 0));
   }, [teams]);
 
   const insights = useMemo(() => {
