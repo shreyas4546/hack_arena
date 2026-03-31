@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { supabase, supabaseAdmin } from "@/lib/supabase";
 
+// Prevent Next.js from caching this route
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     // 1. Fetch all teams
@@ -29,7 +33,9 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json(enhancedTeams);
+    const response = NextResponse.json(enhancedTeams);
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    return response;
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
   }

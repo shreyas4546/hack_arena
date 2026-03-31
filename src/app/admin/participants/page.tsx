@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft, Users, Github, Search, CheckCircle2,
   XCircle, AlertTriangle, Clock, Hash,
-  Key, Mail, Loader2
+  Key, Mail, Loader2, RefreshCw
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -33,19 +33,22 @@ export default function ParticipantsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [resetting, setResetting] = useState(false);
 
-  useEffect(() => {
-    const fetchTeams = async () => {
-      try {
-        const res = await fetch("/api/admin/participants-with-auth");
-        if (res.ok) setTeams(await res.json());
-      } catch (e) {
-        console.error("Failed to fetch participants", e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTeams();
+  const fetchTeams = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/participants-with-auth", { cache: "no-store" });
+      if (res.ok) setTeams(await res.json());
+    } catch (e) {
+      console.error("Failed to fetch participants", e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchTeams();
+    const interval = setInterval(fetchTeams, 30000);
+    return () => clearInterval(interval);
+  }, [fetchTeams]);
 
   const handleResetPassword = async () => {
     if (!resetTarget || !newPassword.trim()) return;
@@ -100,7 +103,7 @@ export default function ParticipantsPage() {
             <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-teal-500/10 border border-cyan-500/20 shadow-[0_0_30px_rgba(6,182,212,0.1)]">
               <Users className="w-8 h-8 text-cyan-400" />
             </div>
-            <div>
+            <div className="flex-1">
               <h1 className="text-4xl md:text-5xl font-black tracking-tight bg-gradient-to-r from-cyan-300 via-teal-200 to-cyan-400 bg-clip-text text-transparent">
                 Participants
               </h1>
@@ -108,6 +111,9 @@ export default function ParticipantsPage() {
                 {loading ? "Loading..." : <><span className="text-cyan-400 font-bold text-lg">{teams.length}</span> team{teams.length !== 1 ? "s" : ""} registered for HackArena 2K26</>}
               </p>
             </div>
+            <button onClick={() => { setLoading(true); fetchTeams(); }} className="p-2.5 rounded-xl bg-slate-900/50 border border-white/10 text-slate-400 hover:text-cyan-400 hover:border-cyan-500/30 transition-all" title="Refresh participants">
+              <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+            </button>
           </div>
 
           {/* Stats Row */}
