@@ -63,14 +63,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Team is disqualified and cannot submit." }, { status: 403 });
     }
 
-    // 3. Validate Public GitHub Repo
+    // 3. Validate GitHub Repo Format (No network fetch to prevent GitHub blocking)
     try {
-      const repoRes = await fetch(repo_url, { signal: AbortSignal.timeout(5000) });
-      if (!repoRes.ok) {
-        return NextResponse.json({ error: "Repository is not accessible or not public." }, { status: 400 });
+      const trimmedUrl = repo_url.trim();
+      const githubRegex = /^https:\/\/(www\.)?github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/?.*$/i;
+      
+      if (!githubRegex.test(trimmedUrl)) {
+        return NextResponse.json({ error: "Invalid GitHub Repository URL format." }, { status: 400 });
       }
     } catch (e) {
-      return NextResponse.json({ error: "Repository fetch timed out or failed." }, { status: 400 });
+      console.warn("Regex validation failed unexpectedly, skipping:", e);
     }
 
     // 4. Validate Deployment URL (lenient - accept redirects, don't block on fetch failure)
