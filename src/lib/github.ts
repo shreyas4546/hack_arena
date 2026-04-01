@@ -2,7 +2,11 @@ export async function getLatestPushTime(repoUrl: string, retries = 3): Promise<D
   const urlParts = new URL(repoUrl).pathname.split("/").filter(Boolean);
   if (urlParts.length < 2) return null;
   const owner = urlParts[0];
-  const repo = urlParts[1];
+  let repo = urlParts[1];
+  
+  if (repo.endsWith('.git')) {
+    repo = repo.slice(0, -4);
+  }
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
