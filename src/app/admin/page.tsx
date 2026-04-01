@@ -72,7 +72,8 @@ function generateActivityData(teams: Team[]) {
       const diff = Math.abs(differenceInMinutes(new Date(t.last_push), hour));
       return diff < 60;
     }).length;
-    const commits = Math.max(0, activeCount * 2 + Math.floor(Math.random() * 3));
+    // Replace random flashing bug with stable estimated multiplier based on live active teams
+    const commits = activeCount > 0 ? activeCount * 3 + (i % 2) : 0;
     hours.push({ time: label, activeTeams: activeCount, commits });
   }
   return hours;

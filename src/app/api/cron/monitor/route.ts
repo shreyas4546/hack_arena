@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getLatestPushTime } from "@/lib/github";
 import { sendDiscordNotification } from "@/lib/discord";
+import { calculateTeamScore } from "@/lib/scoring";
 
 // export const maxDuration = 60; // Max allowed for Vercel Hobby/Pro depending on plan, helps prevent raw timeouts
 export const dynamic = "force-dynamic";
@@ -89,23 +90,22 @@ export async function GET(request: Request) {
           let newStatus = team.status;
           let newStrikes = team.strike_count;
           let lastPushTimeStr = team.last_push; 
-          let activityScore = 0;
-
+          
           const regTime = new Date(team.created_at).getTime();
           let isValidHackathonPush = false;
+          
+          // CRITICAL FIX: If GitHub API failed (e.g. rate limit), fallback to the team's last known push time
+          const effectiveLastPushDate = lastPushDate || (team.last_push ? new Date(team.last_push) : null);
 
-          if (lastPushDate && lastPushDate.getTime() > regTime) {
+          if (effectiveLastPushDate && effectiveLastPushDate.getTime() > regTime) {
             isValidHackathonPush = true;
-            lastPushTimeStr = lastPushDate.toISOString();
+            lastPushTimeStr = effectiveLastPushDate.toISOString();
           }
 
           // If they haven't made a valid push since registering, the 60-min timer starts from their registration time.
-          const referenceTime = isValidHackathonPush ? lastPushDate!.getTime() : regTime;
+          const referenceTime = isValidHackathonPush ? effectiveLastPushDate!.getTime() : regTime;
           // Math.max(0, ...) strictly prevents negative time differences from clock skew which would cause -1 strikes
           const diffMins = Math.max(0, (now - referenceTime) / (1000 * 60));
-
-          // Calculate base activity component (0-100 scale, declines linearly up to 24h)
-          activityScore = Math.max(0, 100 - (diffMins / (24 * 60)) * 100);
 
           // Stateless Strike Calculation: 1 strike for every full 60 mins missed
           newStrikes = Math.floor(diffMins / 60);
@@ -125,30 +125,13 @@ export async function GET(request: Request) {
             deployEval = await pingDeployment(team.deployment_url);
           }
           
-          let deploymentScore = 0;
-          if (deployEval.status === "live") deploymentScore = 100;
-          else if (deployEval.status === "slow") deploymentScore = 50;
-
-          // 3. Stability Component
-          let stabilityScore = 0;
-          if (newStrikes === 0) stabilityScore = 100;
-          else if (newStrikes === 1) stabilityScore = 50;
-          else if (newStrikes === 2) stabilityScore = 20;
-
-          // 4. Final Score Calculation (Hybrid: Behavioral Analytics + Human Judging)
-          const behaviorScore = (activityScore * 0.4) + (deploymentScore * 0.4) + (stabilityScore * 0.2); // 0-100
-          
-          let finalRawScore = 0;
-          if (team.judge_score && team.judge_score > 0) {
-            // Weighted: 40% Behavior, 60% Judge (normalized to 100)
-            const judgeContrib = team.judge_score * 10;
-            finalRawScore = (behaviorScore * 0.4) + (judgeContrib * 0.6);
-          } else {
-            // Baseline: 100% Behavior if judging hasn't happened yet
-            finalRawScore = behaviorScore;
-          }
-
-          const finalScore = Math.round((finalRawScore / 10) * 10) / 10; // 0-10 with 1 decimal
+          const finalScore = calculateTeamScore(
+            team.judge_score,
+            newStrikes,
+            deployEval.status,
+            lastPushTimeStr,
+            team.created_at
+          );
 
           // Populating report with all evaluated active/warning/inactive teams
           if (newStatus === "active") report.active.push(team.team_name);
