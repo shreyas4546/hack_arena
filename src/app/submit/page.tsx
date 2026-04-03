@@ -136,7 +136,7 @@ export default function SubmitPage() {
             <div className="space-y-2">
               <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Submission Secured</h2>
               <p className="text-emerald-400/90 text-sm font-medium px-4">
-                Your team's final project has been safely recorded in the main databanks.
+                Your team&apos;s final project has been safely recorded in the main databanks.
               </p>
             </div>
 
