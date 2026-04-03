@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { Loader2, LogOut, ShieldAlert, Github, ExternalLink, Activity, AlertTriangle, Trophy, Copy, CheckCircle2, AlertCircle, Zap, Users, Target } from "lucide-react";
+import { Loader2, LogOut, ShieldAlert, Github, ExternalLink, Activity, AlertTriangle, Trophy, Copy, CheckCircle2, AlertCircle, Zap, Users, Target, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type TeamData = {
@@ -111,6 +112,14 @@ export default function DashboardPage() {
 
       <div className="relative z-10 max-w-6xl mx-auto space-y-8 animate-in fade-in duration-700">
         
+        {/* Navigation */}
+        <div className="flex items-center w-full">
+          <Link href="/" className="text-[#a78b7d] hover:text-orange-400 flex items-center gap-2 group transition-colors w-fit text-[11px] font-bold tracking-[0.15em] uppercase">
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
+            Back to Base
+          </Link>
+        </div>
+
         {/* Header */}
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8">
           <div>

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Rocket, Lock } from "lucide-react";
+import { ArrowLeft, Rocket, Lock, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import PremiumCard from "@/components/PremiumCard";
 
@@ -23,6 +23,7 @@ export default function SubmitPage() {
   const [error, setError] = useState("");
   const [submissionsLocked, setSubmissionsLocked] = useState(false);
   const [fetchingSettings, setFetchingSettings] = useState(true);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -64,6 +65,7 @@ export default function SubmitPage() {
       if (!res.ok) throw new Error(data.error);
 
       setMessage("Final project successfully submitted!");
+      setIsSubmitted(true);
     } catch (err: any) {
       setError(err.message || "Failed to submit project.");
     } finally {
@@ -124,8 +126,42 @@ export default function SubmitPage() {
               </Button>
             </div>
           </div>
+        ) : isSubmitted ? (
+          <div className="relative z-10 flex flex-col items-center text-center py-12 space-y-6 animate-in fade-in zoom-in-95 duration-500">
+            <div className="p-5 rounded-full bg-emerald-500/10 border border-emerald-500/20 relative shadow-[0_0_40px_rgba(16,185,129,0.15)]">
+               <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full animate-pulse" />
+               <CheckCircle2 className="w-16 h-16 text-emerald-400 relative z-10" />
+            </div>
+            
+            <div className="space-y-2">
+              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Submission Secured</h2>
+              <p className="text-emerald-400/90 text-sm font-medium px-4">
+                Your team's final project has been safely recorded in the main databanks.
+              </p>
+            </div>
+
+            <div className="w-full max-w-sm p-6 mt-4 rounded-xl bg-white/[0.03] border border-white/[0.08] text-left space-y-4">
+               <div>
+                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1.5">Live Deployment</p>
+                  <p className="text-sm text-emerald-400 truncate">{deployUrl}</p>
+               </div>
+               <div>
+                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1.5">Repository</p>
+                  <p className="text-sm text-slate-300 truncate">{repoUrl}</p>
+               </div>
+            </div>
+
+            <div className="pt-6 w-full max-w-sm">
+              <Button 
+                onClick={() => { setIsSubmitted(false); setMessage(""); }} 
+                className="w-full h-12 bg-transparent hover:bg-white/[0.05] text-slate-300 font-bold border border-white/[0.1] transition-colors cursor-pointer rounded-xl"
+              >
+                Need to update links?
+              </Button>
+            </div>
+          </div>
         ) : (
-          <form onSubmit={handleSubmit} className="relative z-10 space-y-7">
+          <form onSubmit={handleSubmit} className="relative z-10 space-y-7 animate-in fade-in duration-500">
             <div className="space-y-2.5">
               <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Team Name</label>
               <Input
