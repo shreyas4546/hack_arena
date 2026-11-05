@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { supabase, supabaseAdmin } from "@/lib/supabase";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   const { data, error } = await supabase
-    .from("teams")
-    .select("*")
+    .from("teams_public")
+    .select("id, team_name, repo_url, deployment_url, last_push, status, strike_count, category, problem_statement, deployment_status, response_time, score, created_at")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -34,14 +37,14 @@ export async function POST(request: Request) {
     }
 
     // Check if team name already exists
-    const { data: existingByName } = await supabase
+    const { data: existingByName } = await supabaseAdmin
       .from("teams")
       .select("id")
       .eq("team_name", team_name)
       .maybeSingle();
 
     // Check if repo URL already exists
-    const { data: existingByRepo } = await supabase
+    const { data: existingByRepo } = await supabaseAdmin
       .from("teams")
       .select("id")
       .eq("repo_url", repo_url)
@@ -65,7 +68,7 @@ export async function POST(request: Request) {
     }
 
     // 2. Insert into teams table with auth_user_id
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("teams")
       .insert([{ 
         team_name, 

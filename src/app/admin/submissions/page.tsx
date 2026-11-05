@@ -29,7 +29,7 @@ export default function FinalSubmissionsPage() {
   useEffect(() => {
     const fetchTeams = async () => {
       try {
-        const res = await fetch("/api/teams");
+        const res = await fetch("/api/admin/teams");
         if (res.ok) {
           const data = await res.json();
           setTeams(data.filter((t: Team) => t.deployment_url));

@@ -1,14 +1,20 @@
 import { NextResponse } from "next/server";
 import { supabase, supabaseAdmin } from "@/lib/supabase";
+import { verifyAdminAuth } from "@/lib/admin-auth";
 
 // Prevent Next.js from caching this route
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = verifyAdminAuth(request);
+  if (!auth.authorized) {
+    return auth.response;
+  }
+
   try {
     // 1. Fetch all teams
-    const { data: teams, error } = await supabase
+    const { data: teams, error } = await supabaseAdmin
       .from("teams")
       .select("*")
       .order("created_at", { ascending: false });

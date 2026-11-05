@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getLatestPushTime } from "@/lib/github";
 import { sendDiscordNotification } from "@/lib/discord";
 import { calculateTeamScore } from "@/lib/scoring";
+import { verifyAdminAuth } from "@/lib/admin-auth";
+import { isSafePublicUrl, safePingUrl } from "@/lib/url-validation";
 
 // export const maxDuration = 60; // Max allowed for Vercel Hobby/Pro depending on plan, helps prevent raw timeouts
 export const dynamic = "force-dynamic";
@@ -13,43 +16,41 @@ const DEPLOYMENT_TIMEOUT_MS = 4000; // Reduced to 4 seconds to prevent serverles
 
 async function pingDeployment(url: string | null): Promise<{ status: "live" | "slow" | "down" | "pending"; time: number }> {
   if (!url) return { status: "pending", time: 0 };
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), DEPLOYMENT_TIMEOUT_MS);
-  const start = Date.now();
+  if (!isSafePublicUrl(url)) return { status: "down", time: 0 };
 
   try {
-    const res = await fetch(url, {
-      method: "GET",
-      headers: { "User-Agent": "HackArena-Eval/1.0" },
-      signal: controller.signal,
-    });
-    
-    // Some platforms return 200 but it's an error page. We just check basic validity.
-    const time = Date.now() - start;
-    clearTimeout(timeoutId);
-
+    const res = await safePingUrl(url, DEPLOYMENT_TIMEOUT_MS);
     if (res.ok) {
-      const text = await res.text();
-      // Basic check: must contain HTML and something roughly looking like a valid response format (like a `<title>`)
+      if (res.isRedirect) {
+        return { status: res.timeMs < 3000 ? "live" : "slow", time: res.timeMs };
+      }
+      const text = res.bodySnippet || "";
       if (text.toLowerCase().includes("<html") || text.toLowerCase().includes("<title>")) {
-        return { status: time < 3000 ? "live" : "slow", time };
+        return { status: res.timeMs < 3000 ? "live" : "slow", time: res.timeMs };
       }
     }
-    return { status: "down", time };
-  } catch (error) {
-    clearTimeout(timeoutId);
-    return { status: "down", time: Date.now() - start };
+    return { status: "down", time: res.timeMs };
+  } catch {
+    return { status: "down", time: DEPLOYMENT_TIMEOUT_MS };
   }
 }
 
-export async function GET(request: Request) {
-  // Authorization Check - CRON_SECRET Enforcement
-  const authHeader = request.headers.get("authorization");
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return new Response("Unauthorized", { status: 401 });
+/**
+ * Constant-time comparison between two strings to prevent timing attacks.
+ */
+function safeCompareTokens(provided: string, expected: string): boolean {
+  const bufA = Buffer.from(provided, "utf-8");
+  const bufB = Buffer.from(expected, "utf-8");
+
+  if (bufA.length !== bufB.length) {
+    crypto.timingSafeEqual(bufA, bufA);
+    return false;
   }
 
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+async function executeMonitoring() {
   try {
     let trackingFrozen = false;
     let freezeMessage = "";
@@ -256,13 +257,36 @@ ${report.action_required.length > 0 ? `\n🚨 **ADMIN ACTION REQUIRED (Recommend
   }
 }
 
+export async function GET(request: Request) {
+  const cronSecret = process.env.CRON_SECRET;
+
+  // Case A — CRON_SECRET is missing or empty: Fail closed before executing any monitoring logic
+  if (!cronSecret || cronSecret.trim() === "") {
+    return new Response("Cron secret is not configured.", { status: 503 });
+  }
+
+  // Case B — Missing or incorrect authorization header
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const token = authHeader.slice(7).trim();
+  if (!token || !safeCompareTokens(token, cronSecret)) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  // Case C — Correct Bearer token: Execute scheduled monitoring
+  return executeMonitoring();
+}
+
 export async function POST(request: Request) {
-  // Middleware protects POST /api/cron/monitor with Basic Auth
-  // We mock the CRON_SECRET header so the GET handler allows it
-  const mockReq = new Request(request.url, {
-    headers: {
-      authorization: `Bearer ${process.env.CRON_SECRET}`,
-    },
-  });
-  return GET(mockReq);
+  // Manual trigger from Admin Dashboard: enforce administrator authorization
+  const auth = verifyAdminAuth(request);
+  if (!auth.authorized) {
+    return auth.response;
+  }
+
+  // Authenticated administrator authorized: execute monitoring logic
+  return executeMonitoring();
 }

@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { supabase, supabaseAdmin } from "@/lib/supabase";
+import { verifyAdminAuth } from "@/lib/admin-auth";
 
 export async function POST(request: Request) {
+  const auth = verifyAdminAuth(request);
+  if (!auth.authorized) {
+    return auth.response;
+  }
+
   try {
     const { team_id, new_password } = await request.json();
 
@@ -14,7 +20,7 @@ export async function POST(request: Request) {
     }
 
     // 1. Get the auth_user_id from the team_id
-    const { data: team, error: teamError } = await supabase
+    const { data: team, error: teamError } = await supabaseAdmin
       .from("teams")
       .select("auth_user_id, team_name")
       .eq("id", team_id)

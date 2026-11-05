@@ -31,7 +31,7 @@ export default function AdminJudgingMatrix() {
 
   const fetchTeams = async () => {
     try {
-      const res = await fetch("/api/teams");
+      const res = await fetch("/api/admin/teams");
       if (res.ok) {
         const data = await res.json();
         // Sort active/top teams first

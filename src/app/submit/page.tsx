@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Rocket, Lock, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Rocket, Lock, CheckCircle2, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import PremiumCard from "@/components/PremiumCard";
+import { supabase } from "@/lib/supabase";
 
 import { problemStatements } from "@/constants/problemStatements";
 
@@ -24,22 +25,48 @@ export default function SubmitPage() {
   const [submissionsLocked, setSubmissionsLocked] = useState(false);
   const [fetchingSettings, setFetchingSettings] = useState(true);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   useEffect(() => {
-    async function fetchSettings() {
+    async function initPage() {
       try {
-        const res = await fetch("/api/settings");
-        if (res.ok) {
-          const data = await res.json();
+        const [settingsRes, { data: sessionData }] = await Promise.all([
+          fetch("/api/settings"),
+          supabase.auth.getSession()
+        ]);
+
+        if (settingsRes.ok) {
+          const data = await settingsRes.json();
           setSubmissionsLocked(data.submissions_locked);
         }
+
+        const session = sessionData?.session;
+        if (session) {
+          setIsAuthenticated(true);
+          // Pre-populate submission fields from the team linked to this user
+          const { data: teamData } = await supabase
+            .from("teams")
+            .select("*")
+            .eq("auth_user_id", session.user.id)
+            .maybeSingle();
+
+          if (teamData) {
+            if (teamData.team_name) setTeamName(teamData.team_name);
+            if (teamData.repo_url) setRepoUrl(teamData.repo_url);
+            if (teamData.category) setCategory(teamData.category);
+            if (teamData.problem_statement) setProblemStatement(teamData.problem_statement);
+            if (teamData.deployment_url) setDeployUrl(teamData.deployment_url);
+          }
+        } else {
+          setIsAuthenticated(false);
+        }
       } catch (err) {
-        console.error("Failed to fetch settings", err);
+        console.error("Failed to initialize submit page", err);
       } finally {
         setFetchingSettings(false);
       }
     }
-    fetchSettings();
+    initPage();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,13 +75,23 @@ export default function SubmitPage() {
     setMessage("");
     setError("");
 
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      setError("Authentication required: Please log in to your team account before submitting.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/submissions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          team_name: teamName, 
-          repo_url: repoUrl, 
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          team_name: teamName,
+          repo_url: repoUrl,
           deployment_url: deployUrl,
           category,
           problem_statement: problemStatement
@@ -98,7 +135,7 @@ export default function SubmitPage() {
       >
         <PremiumCard glowColor="rgba(251,146,60,0.06)" className="p-9 sm:p-11 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)]" noLift>
         <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-orange-500/[0.04] rounded-full blur-[120px] pointer-events-none -mr-24 -mt-24" />
-        
+
         <div className="relative z-10 mb-10">
           <h1 className="flex items-center gap-3 text-3xl sm:text-4xl font-black bg-gradient-to-r from-white via-orange-100 to-orange-400 bg-clip-text text-transparent tracking-tight">
             <Rocket className="w-8 h-8 text-orange-400" />
@@ -132,7 +169,7 @@ export default function SubmitPage() {
                <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full animate-pulse" />
                <CheckCircle2 className="w-16 h-16 text-emerald-400 relative z-10" />
             </div>
-            
+
             <div className="space-y-2">
               <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Submission Secured</h2>
               <p className="text-emerald-400/90 text-sm font-medium px-4">
@@ -152,8 +189,8 @@ export default function SubmitPage() {
             </div>
 
             <div className="pt-6 w-full max-w-sm">
-              <Button 
-                onClick={() => { setIsSubmitted(false); setMessage(""); }} 
+              <Button
+                onClick={() => { setIsSubmitted(false); setMessage(""); }}
                 className="w-full h-12 bg-transparent hover:bg-white/[0.05] text-slate-300 font-bold border border-white/[0.1] transition-colors cursor-pointer rounded-xl"
               >
                 Need to update links?
@@ -162,6 +199,17 @@ export default function SubmitPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="relative z-10 space-y-7 animate-in fade-in duration-500">
+            {isAuthenticated === false && (
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>You are not logged in. Please authenticate with your team account to submit.</span>
+                </div>
+                <Link href="/login" className="font-bold underline text-amber-400 hover:text-amber-200 shrink-0">
+                  Log In →
+                </Link>
+              </div>
+            )}
             <div className="space-y-2.5">
               <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Team Name</label>
               <Input

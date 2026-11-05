@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { calculateTeamScore } from "@/lib/scoring";
+import { verifyAdminAuth } from "@/lib/admin-auth";
 
 export async function POST(request: Request) {
+  const auth = verifyAdminAuth(request);
+  if (!auth.authorized) {
+    return auth.response;
+  }
+
   try {
     const body = await request.json();
     const { team_id, judge_score } = body;

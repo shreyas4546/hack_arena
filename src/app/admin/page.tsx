@@ -102,7 +102,7 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const [teamsRes, settingsRes, regLockRes] = await Promise.all([fetch("/api/teams"), fetch("/api/settings"), fetch("/api/registration-lock")]);
+      const [teamsRes, settingsRes, regLockRes] = await Promise.all([fetch("/api/admin/teams"), fetch("/api/settings"), fetch("/api/registration-lock")]);
       if (teamsRes.ok) setTeams(await teamsRes.json());
       if (settingsRes.ok) {
         const settings = await settingsRes.json();
