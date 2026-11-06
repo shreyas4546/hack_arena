@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
-import { Activity, Code, ShieldCheck, Github, AlertCircle, Terminal, Zap, Flag, Lock, Trophy, HeartPulse } from "lucide-react";
+import { Activity, Code, ShieldCheck, Github, AlertCircle, Terminal, Zap, Flag, Lock, Trophy, HeartPulse, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import PremiumCard from "@/components/PremiumCard";
 import CursorTrail from "@/components/CursorTrail";
@@ -210,51 +210,82 @@ export default function Home() {
           <h2 className="text-4xl sm:text-5xl md:text-6xl font-black bg-gradient-to-r from-orange-400 via-amber-300 to-orange-500 bg-clip-text text-transparent pb-3">
             Event Rules & Regulations
           </h2>
-          <p className="text-slate-500 mt-6 max-w-2xl mx-auto font-medium text-base">
-            Failure to comply with the HackArena tracking algorithms will result in automated flags or immediate disqualification.
+          <p className="text-slate-400 mt-5 max-w-2xl mx-auto font-medium text-sm sm:text-base leading-relaxed">
+            {features.strikes
+              ? "Failure to comply with the HackArena tracking algorithms will result in automated flags or immediate disqualification."
+              : "Follow verified development milestones and submit your production deployment before the final countdown expires."
+            }
           </p>
         </div>
 
-        <div className={cn("grid gap-5", features.strikes ? "md:grid-cols-3" : "md:grid-cols-2")}>
+        {/* Systematically Arranged Responsive Grid (2 columns on tablet/desktop) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
           <RuleCard 
+            phase="01"
+            badge="Code Cadence"
             icon={<Terminal className="w-7 h-7 text-cyan-400" />}
             title={features.checkpoints ? `1. Commit Checkpoints (${features.commitInterval}h)` : "1. Continuous Commits"}
             desc={features.checkpoints 
               ? `All development must be tracked incrementally. Code pushes are evaluated at regular ${features.commitInterval}-hour checkpoint deadlines throughout the hackathon.`
               : "All development must be tracked incrementally. Push code regularly throughout development. Dumping code in a single massive commit at the end is strictly prohibited."
             }
+            highlights={[
+              "Verified GitHub Commits",
+              "Anti-Dumping Code Audit",
+              features.checkpoints ? `${features.commitInterval}-Hour Interval Deadlines` : "Continuous Incremental Pushes"
+            ]}
             glow="rgba(6,182,212,0.12)"
           />
 
           {features.strikes && (
             <>
               <RuleCard 
+                phase="02"
+                badge="Automated Monitor"
                 icon={<Zap className="w-7 h-7 text-amber-400" />}
                 title="2. The Strike System"
                 desc={features.initialized 
                   ? `Missing a ${features.commitInterval}-hour commit checkpoint issues a warning on the first occurrence and inactivity strikes on subsequent missed checkpoints.`
                   : "The master system assigns 1 inactivity strike for every 60 full minutes without a GitHub push. See the detailed breakdown below."
                 }
+                highlights={[
+                  "Automated Checkpoint Probes",
+                  "1st Missed = Official Warning",
+                  "Subsequent Misses = Inactivity Strike"
+                ]}
                 glow="rgba(251,191,36,0.12)"
               />
               <RuleCard 
+                phase="03"
+                badge="Disqualification"
                 icon={<AlertCircle className="w-7 h-7 text-rose-500" />}
                 title="3. Three Strikes = Out"
                 desc={features.scoring 
                   ? "Accumulating 3 inactive strikes flags your team for disqualification review. Push code to erase strikes and restore your stability score."
                   : "Accumulating 3 inactive strikes flags your team for disqualification review. Push code to resolve strikes and return your status to active."
                 }
+                highlights={[
+                  "Threshold: 3 Inactive Strikes",
+                  "Disqualification Review Trigger",
+                  "Push Verified Code to Recover"
+                ]}
                 glow="rgba(244,63,94,0.12)"
               />
             </>
           )}
 
           <RuleCard 
-            className={features.strikes ? "md:col-span-3" : "md:col-span-2"}
+            phase={features.strikes ? "04" : "02"}
+            badge="Live Verification"
             icon={<Flag className="w-7 h-7 text-emerald-400" />}
             title={features.strikes ? "4. Final Deployment Submission" : "2. Final Deployment Submission"}
             desc="You must deploy your project to a live URL (Vercel, Render, Firebase, etc.) and submit the link via the Final Submission portal before the countdown ends. Localhost links are not accepted and will not be judged."
-            glow="rgba(52,211,153,0.08)"
+            highlights={[
+              "Production URL (Vercel, Render, Cloudflare)",
+              "Live Automated Uptime Verification",
+              "Strict Countdown Deadline Cutoff"
+            ]}
+            glow="rgba(52,211,153,0.12)"
           />
         </div>
 
@@ -432,21 +463,74 @@ export default function Home() {
   );
 }
 
-function RuleCard({ icon, title, desc, glow, className }: any) {
+function RuleCard({ 
+  icon, 
+  title, 
+  desc, 
+  glow, 
+  className, 
+  phase, 
+  badge, 
+  highlights 
+}: {
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+  glow?: string;
+  className?: string;
+  phase?: string;
+  badge?: string;
+  highlights?: string[];
+}) {
   return (
     <PremiumCard
       glowColor={glow}
-      className={cn("p-8 cursor-pointer", className)}
+      className={cn("p-7 sm:p-8 cursor-pointer h-full transition-all duration-300 flex flex-col justify-between", className)}
     >
       <div className="flex flex-col h-full">
-        <div className="mb-7 inline-flex p-4 rounded-2xl bg-white/[0.03] border border-white/[0.05] w-max group-hover:border-orange-500/15 group-hover:scale-105 transition-all duration-400">
-          {icon}
+        {/* Top Header Row with Icon and Phase Badge */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="inline-flex p-3.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] group-hover:border-orange-500/25 group-hover:scale-105 transition-all duration-300">
+            {icon}
+          </div>
+          {phase && (
+            <div className="flex items-center gap-2">
+              {badge && (
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-white/[0.03] px-2.5 py-1 rounded-full border border-white/[0.06]">
+                  {badge}
+                </span>
+              )}
+              <span className="text-xs font-mono font-black text-slate-500 bg-slate-900/60 px-2 py-0.5 rounded-md border border-white/5">
+                #{phase}
+              </span>
+            </div>
+          )}
         </div>
-        <h3 className="text-xl font-bold text-white mb-3 group-hover:-translate-y-0.5 transition-transform duration-300 tracking-tight">{title}</h3>
-        <p className="text-slate-400 text-sm leading-relaxed font-medium mt-auto group-hover:text-slate-300 transition-colors duration-300">{desc}</p>
+
+        {/* Title */}
+        <h3 className="text-xl font-black text-white mb-3 group-hover:-translate-y-0.5 transition-transform duration-300 tracking-tight">
+          {title}
+        </h3>
+
+        {/* Description */}
+        <p className="text-slate-400 text-sm leading-relaxed font-normal mb-6 group-hover:text-slate-300 transition-colors duration-300">
+          {desc}
+        </p>
+
+        {/* Highlights Checklist */}
+        {highlights && highlights.length > 0 && (
+          <div className="mt-auto pt-5 border-t border-white/[0.06] space-y-2">
+            {highlights.map((item, idx) => (
+              <div key={idx} className="flex items-center gap-2.5 text-xs text-slate-300/90 font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400/90 shrink-0" />
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </PremiumCard>
-  )
+  );
 }
 
 function FeatureItem({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
