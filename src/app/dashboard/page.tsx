@@ -44,12 +44,12 @@ export default function DashboardPage() {
           return;
         }
 
-        const [teamRes, settingsRes] = await Promise.all([
+        const [teamsRes, settingsRes] = await Promise.all([
           supabase
             .from("teams")
             .select("*")
             .eq("auth_user_id", session.user.id)
-            .maybeSingle(),
+            .order("event_id", { ascending: false }),
           fetch("/api/settings")
         ]);
 
@@ -65,17 +65,22 @@ export default function DashboardPage() {
         }
 
         const activeEventId = currentSettings?.event_id ?? 1;
-        const { data: teamData, error: dbError } = teamRes;
+        const { data: teamsList, error: dbError } = teamsRes;
 
         if (dbError) {
           console.error(dbError);
           setError("Failed to load team data. Please try again later.");
-        } else if (!teamData) {
+        } else if (!teamsList || teamsList.length === 0) {
           setError("Access Error: No team found for this account.");
-        } else if (teamData.event_id && teamData.event_id !== activeEventId) {
-          setError(`Archived Account: This team participated in Hackathon #${teamData.event_id} (Concluded). A new team registration is required for Hackathon #${activeEventId}.`);
         } else {
-          setTeam(teamData);
+          // Find team for current active event
+          const activeTeam = teamsList.find(t => t.event_id === activeEventId);
+          if (activeTeam) {
+            setTeam(activeTeam);
+          } else {
+            const archivedTeam = teamsList[0];
+            setError(`Archived Account: This account participated in Hackathon #${archivedTeam.event_id} (Concluded). A new team registration is required for Hackathon #${activeEventId}.`);
+          }
         }
       } catch (err) {
         console.error(err);

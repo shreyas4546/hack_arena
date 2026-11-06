@@ -74,34 +74,89 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid GitHub repository URL format" }, { status: 400 });
     }
 
-    // Check if team name already exists
+    // Check if team name already exists in the current event
     const { data: existingByName } = await supabaseAdmin
       .from("teams")
       .select("id")
       .eq("team_name", team_name)
+      .eq("event_id", currentEventId)
       .maybeSingle();
 
-    // Check if repo URL already exists
+    if (existingByName) {
+      return NextResponse.json({ 
+        error: `Team name "${team_name}" is already taken in this hackathon. Please choose another name.` 
+      }, { status: 400 });
+    }
+
+    // Check if repo URL already exists in the current event
     const { data: existingByRepo } = await supabaseAdmin
       .from("teams")
       .select("id")
       .eq("repo_url", repo_url)
+      .eq("event_id", currentEventId)
       .maybeSingle();
 
-    if (existingByName || existingByRepo) {
-      return NextResponse.json({ error: "Team name or repository already registered" }, { status: 400 });
+    if (existingByRepo) {
+      return NextResponse.json({ 
+        error: "This GitHub repository is already registered by another team in this hackathon." 
+      }, { status: 400 });
     }
 
-    // 1. Create Supabase Auth User
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { team_name }
-    });
+    // 1. Manage Supabase Auth User (handles new users and returning participants across events)
+    let authUserId: string | null = null;
+    let newlyCreatedUser = false;
 
-    if (authError || !authData.user) {
-      return NextResponse.json({ error: authError?.message || "Failed to create authentication user" }, { status: 400 });
+    // Check if user already exists in auth
+    const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
+    const existingUser = userList?.users?.find(
+      (u) => u.email?.toLowerCase().trim() === email.toLowerCase().trim()
+    );
+
+    if (existingUser) {
+      // Check if this user is already registered for the current event
+      const { data: userCurrentTeam } = await supabaseAdmin
+        .from("teams")
+        .select("id, team_name")
+        .eq("auth_user_id", existingUser.id)
+        .eq("event_id", currentEventId)
+        .maybeSingle();
+
+      if (userCurrentTeam) {
+        return NextResponse.json({ 
+          error: `An account with ${email} is already registered as team "${userCurrentTeam.team_name}" for this hackathon. Please log in directly to your dashboard.` 
+        }, { status: 400 });
+      }
+
+      // Existing participant from previous event or unlinked auth record: update password and team_name metadata
+      const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(
+        existingUser.id,
+        {
+          password,
+          email_confirm: true,
+          user_metadata: { team_name }
+        }
+      );
+
+      if (updateErr) {
+        return NextResponse.json({ error: updateErr.message || "Failed to update participant credentials" }, { status: 400 });
+      }
+
+      authUserId = existingUser.id;
+    } else {
+      // Create fresh auth user
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { team_name }
+      });
+
+      if (authError || !authData.user) {
+        return NextResponse.json({ error: authError?.message || "Failed to create authentication user" }, { status: 400 });
+      }
+
+      authUserId = authData.user.id;
+      newlyCreatedUser = true;
     }
 
     // 2. Insert into teams table with auth_user_id and event_id
@@ -117,7 +172,7 @@ export async function POST(request: Request) {
         status: "active", 
         strike_count: 0, 
         last_push: null,
-        auth_user_id: authData.user.id,
+        auth_user_id: authUserId,
         event_id: currentEventId,
         last_processed_checkpoint: 0,
         checkpoint_status: "on_track",
@@ -127,7 +182,9 @@ export async function POST(request: Request) {
       .single();
 
     if (error) {
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      if (newlyCreatedUser && authUserId) {
+        await supabaseAdmin.auth.admin.deleteUser(authUserId);
+      }
       throw error;
     }
 
