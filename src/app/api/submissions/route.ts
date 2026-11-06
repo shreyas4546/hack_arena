@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     }
 
     // 3. Check Settings if Submissions are Locked
-    const { data: settings } = await supabaseAdmin.from("settings").select("submissions_locked").single();
+    const { data: settings } = await supabaseAdmin.from("settings").select("submissions_locked, event_id").single();
     if (settings?.submissions_locked) {
       return NextResponse.json({ error: "Submissions are currently locked." }, { status: 403 });
     }
@@ -60,6 +60,14 @@ export async function POST(request: Request) {
 
     if (teamError || !team) {
       return NextResponse.json({ error: "Team not found." }, { status: 404 });
+    }
+
+    const activeEventId = settings?.event_id || 1;
+    if (team.event_id && team.event_id !== activeEventId) {
+      return NextResponse.json(
+        { error: "Submissions are only open for the active hackathon event." },
+        { status: 403 }
+      );
     }
 
     // 5. Ownership Verification: caller's verified Supabase user ID must match team's auth_user_id

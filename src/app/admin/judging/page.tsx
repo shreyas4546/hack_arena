@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
-import { ExternalLink, Github, Trophy, AlertTriangle, MonitorPlay, Activity, Ban } from "lucide-react";
+import { ExternalLink, Github, Trophy, AlertTriangle, MonitorPlay, Activity, Ban, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -7,10 +7,30 @@ import { cn } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 export default async function JudgingDashboard() {
-  const { data: teams, error } = await supabaseAdmin
+  const { data: settings } = await supabaseAdmin
+    .from("settings")
+    .select("*")
+    .single();
+
+  const scoringEnabled = settings?.feature_scoring_enabled ?? true;
+  const configInitialized = settings?.feature_config_initialized ?? false;
+  const activeEventId = settings?.event_id || 1;
+
+  let query = supabaseAdmin
     .from("teams")
-    .select("id, team_name, repo_url, deployment_url, deployment_status, score, status")
-    .order("score", { ascending: false, nullsFirst: false });
+    .select("id, team_name, repo_url, deployment_url, deployment_status, score, status, event_id");
+
+  if (configInitialized) {
+    query = query.eq("event_id", activeEventId);
+  }
+
+  if (scoringEnabled) {
+    query = query.order("score", { ascending: false, nullsFirst: false });
+  } else {
+    query = query.order("team_name", { ascending: true });
+  }
+
+  const { data: teams, error } = await query;
 
   if (error || !teams) {
     return (
@@ -32,8 +52,6 @@ export default async function JudgingDashboard() {
   const notDeployedTeams = activeTeams.filter(
     (t) => t.deployment_status === "down" || !t.deployment_status
   ).sort((a, b) => a.team_name.localeCompare(b.team_name));
-
-  const top10Teams = deployedTeams.slice(0, 10);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 selection:bg-cyan-500/30 font-sans pb-24">
@@ -92,6 +110,15 @@ export default async function JudgingDashboard() {
           </div>
         </header>
 
+        {!scoringEnabled && (
+          <div className="mb-10 p-5 rounded-2xl bg-slate-900/40 border border-white/10 flex items-center gap-3 text-slate-300">
+            <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
+            <p className="text-sm">
+              <strong className="text-white">Scoring System is Disabled:</strong> Numerical scoring and ranking are turned off for this event. Participant projects are listed for qualitative manual evaluation.
+            </p>
+          </div>
+        )}
+
         {/* Section A: Deployed */}
         <section className="mb-20">
           <div className="flex items-center justify-between mb-8">
@@ -103,7 +130,7 @@ export default async function JudgingDashboard() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {deployedTeams.map((team, index) => {
-              const isTop10 = index < 10;
+              const isTop10 = scoringEnabled && index < 10;
               return (
                 <div 
                   key={team.id}
@@ -114,26 +141,41 @@ export default async function JudgingDashboard() {
                 >
                   <div className="flex items-center gap-4">
                     {/* Rank Indicator */}
-                    <div className={cn(
-                      "flex items-center justify-center w-10 h-10 rounded-xl font-bold text-lg",
-                      isTop10 ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-slate-800 text-slate-500"
-                    )}>
-                      #{index + 1}
-                    </div>
+                    {scoringEnabled ? (
+                      <div className={cn(
+                        "flex items-center justify-center w-10 h-10 rounded-xl font-bold text-lg",
+                        isTop10 ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-slate-800 text-slate-500"
+                      )}>
+                        #{index + 1}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center w-10 h-10 rounded-xl font-bold text-sm bg-slate-800 text-slate-400 border border-white/5">
+                        <MonitorPlay className="w-5 h-5 text-emerald-400" />
+                      </div>
+                    )}
 
                     <div>
                       <h3 className="text-xl font-bold text-white flex items-center gap-2">
                         {team.team_name}
-                        {index === 0 && <CrownIcon className="w-5 h-5 text-yellow-400" />}
+                        {scoringEnabled && index === 0 && <CrownIcon className="w-5 h-5 text-yellow-400" />}
                       </h3>
                       <div className="flex items-center gap-3 text-sm mt-1">
-                        <span className="flex items-center gap-1.5 text-cyan-400">
-                          <Activity className="w-4 h-4" /> Score: {team.score}
-                        </span>
-                        <span className="text-slate-600">•</span>
+                        {scoringEnabled && (
+                          <>
+                            <span className="flex items-center gap-1.5 text-cyan-400">
+                              <Activity className="w-4 h-4" /> Score: {team.score}
+                            </span>
+                            <span className="text-slate-600">•</span>
+                          </>
+                        )}
                         {team.deployment_status === "slow" && (
                           <span className="text-amber-400 text-xs px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
                             Slow Load Time
+                          </span>
+                        )}
+                        {team.deployment_status === "live" && (
+                          <span className="text-emerald-400 text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                            Responsive
                           </span>
                         )}
                       </div>

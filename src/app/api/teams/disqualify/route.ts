@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     // Check if team exists and is not already disqualified
     const { data: team, error: fetchError } = await supabaseAdmin
       .from("teams")
-      .select("id, status, team_name")
+      .select("id, status, team_name, event_id")
       .eq("id", team_id)
       .single();
 
@@ -30,13 +30,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Team is already disqualified" }, { status: 400 });
     }
 
-    // Disqualify the team — only use existing columns
+    // Check settings for event isolation and strike rules
+    const { data: settings } = await supabaseAdmin
+      .from("settings")
+      .select("event_id, feature_strikes_enabled")
+      .eq("id", 1)
+      .single();
+
+    const activeEventId = settings?.event_id || 1;
+    if (team.event_id && team.event_id !== activeEventId) {
+      return NextResponse.json({ error: "Cannot disqualify a team from a previous event." }, { status: 403 });
+    }
+
+    const strikesEnabled = settings?.feature_strikes_enabled !== false;
+
+    const updatePayload: any = { status: "disqualified" };
+    if (strikesEnabled) {
+      updatePayload.strike_count = 3;
+    }
+
     const { error: updateError } = await supabaseAdmin
       .from("teams")
-      .update({
-        status: "disqualified",
-        strike_count: 3,
-      })
+      .update(updatePayload)
       .eq("id", team_id);
 
     if (updateError) throw updateError;

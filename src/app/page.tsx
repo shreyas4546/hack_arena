@@ -28,6 +28,13 @@ export default function Home() {
   const [regLocked, setRegLocked] = useState(false);
   const [subLocked, setSubLocked] = useState(false);
   const [fetchingLocks, setFetchingLocks] = useState(true);
+  const [features, setFeatures] = useState({
+    checkpoints: true,
+    strikes: true,
+    scoring: true,
+    commitInterval: 6,
+    initialized: false
+  });
   const reflectionRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
@@ -41,6 +48,13 @@ export default function Home() {
         if (subRes.ok) {
           const settings = await subRes.json();
           setSubLocked(settings.submissions_locked);
+          setFeatures({
+            checkpoints: settings.feature_checkpoints_enabled ?? true,
+            strikes: settings.feature_strikes_enabled ?? true,
+            scoring: settings.feature_scoring_enabled ?? true,
+            commitInterval: settings.commit_interval_hours ?? 6,
+            initialized: settings.feature_config_initialized ?? false
+          });
         } else {
           console.error("Failed to fetch settings:", subRes.status);
         }
@@ -197,143 +211,170 @@ export default function Home() {
             Event Rules & Regulations
           </h2>
           <p className="text-slate-500 mt-6 max-w-2xl mx-auto font-medium text-base">
-            Failure to comply with the HackArena tracking algorithms will result in automated strikes or immediate disqualification.
+            Failure to comply with the HackArena tracking algorithms will result in automated flags or immediate disqualification.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-5">
+        <div className={cn("grid gap-5", features.strikes ? "md:grid-cols-3" : "md:grid-cols-2")}>
           <RuleCard 
             icon={<Terminal className="w-7 h-7 text-cyan-400" />}
-            title="1. Continuous Commits"
-            desc="All development must be tracked incrementally. Dumping code in a single massive commit at the end is strictly prohibited and leads to immediate manual disqualification."
+            title={features.checkpoints ? `1. Commit Checkpoints (${features.commitInterval}h)` : "1. Continuous Commits"}
+            desc={features.checkpoints 
+              ? `All development must be tracked incrementally. Code pushes are evaluated at regular ${features.commitInterval}-hour checkpoint deadlines throughout the hackathon.`
+              : "All development must be tracked incrementally. Push code regularly throughout development. Dumping code in a single massive commit at the end is strictly prohibited."
+            }
             glow="rgba(6,182,212,0.12)"
           />
+
+          {features.strikes && (
+            <>
+              <RuleCard 
+                icon={<Zap className="w-7 h-7 text-amber-400" />}
+                title="2. The Strike System"
+                desc={features.initialized 
+                  ? `Missing a ${features.commitInterval}-hour commit checkpoint issues a warning on the first occurrence and inactivity strikes on subsequent missed checkpoints.`
+                  : "The master system assigns 1 inactivity strike for every 60 full minutes without a GitHub push. See the detailed breakdown below."
+                }
+                glow="rgba(251,191,36,0.12)"
+              />
+              <RuleCard 
+                icon={<AlertCircle className="w-7 h-7 text-rose-500" />}
+                title="3. Three Strikes = Out"
+                desc={features.scoring 
+                  ? "Accumulating 3 inactive strikes flags your team for disqualification review. Push code to erase strikes and restore your stability score."
+                  : "Accumulating 3 inactive strikes flags your team for disqualification review. Push code to resolve strikes and return your status to active."
+                }
+                glow="rgba(244,63,94,0.12)"
+              />
+            </>
+          )}
+
           <RuleCard 
-            icon={<Zap className="w-7 h-7 text-amber-400" />}
-            title="2. The Strike System"
-            desc="The master system assigns 1 inactivity strike for every 60 full minutes without a GitHub push. See the detailed breakdown below."
-            glow="rgba(251,191,36,0.12)"
-          />
-          <RuleCard 
-            icon={<AlertCircle className="w-7 h-7 text-rose-500" />}
-            title="3. Three Strikes = Out"
-            desc="Accumulating 3 inactive strikes flags your team for disqualification review. Push code to erase strikes and restore your stability score."
-            glow="rgba(244,63,94,0.12)"
-          />
-          <RuleCard 
-            className="md:col-span-3"
+            className={features.strikes ? "md:col-span-3" : "md:col-span-2"}
             icon={<Flag className="w-7 h-7 text-emerald-400" />}
-            title="4. Final Deployment Submission"
+            title={features.strikes ? "4. Final Deployment Submission" : "2. Final Deployment Submission"}
             desc="You must deploy your project to a live URL (Vercel, Render, Firebase, etc.) and submit the link via the Final Submission portal before the countdown ends. Localhost links are not accepted and will not be judged."
             glow="rgba(52,211,153,0.08)"
           />
         </div>
 
-        {/* STRIKE SYSTEM EXPLAINER */}
-        <motion.div 
-          initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.7, delay: 0.2, ease: [0.23, 1, 0.32, 1] }}
-          className="mt-8 rounded-3xl relative overflow-hidden"
-        >
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-orange-500/[0.04] rounded-full blur-[120px] pointer-events-none -mr-24 -mt-24" />
-          
-          <div className="flex items-center gap-4 mb-12 relative z-10">
-            <div className="p-3.5 bg-orange-500/10 rounded-2xl border border-orange-500/15">
-              <Activity className="w-6 h-6 text-orange-400" />
-            </div>
-            <h3 className="text-2xl md:text-3xl font-black text-white tracking-tight">Core Mechanic: The Strike System</h3>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-12 relative z-10">
-            <div className="space-y-10">
-              <div>
-                <h4 className="text-lg font-bold text-slate-200 mb-3 flex items-center gap-3">
-                  <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.6)]"></span>
-                  0-59 Minutes (0 Strikes)
-                </h4>
-                <p className="text-sm text-slate-400 leading-relaxed pl-6">Status is <span className="text-emerald-400 font-bold tracking-wide">ACTIVE</span>. Your team is coding consistently and retains a 100% Stability Score.</p>
+        {/* STRIKE SYSTEM EXPLAINER (Shown only when Strikes are ON) */}
+        {features.strikes && (
+          <motion.div 
+            initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.7, delay: 0.2, ease: [0.23, 1, 0.32, 1] }}
+            className="mt-8 rounded-3xl relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-orange-500/[0.04] rounded-full blur-[120px] pointer-events-none -mr-24 -mt-24" />
+            
+            <div className="flex items-center gap-4 mb-12 relative z-10">
+              <div className="p-3.5 bg-orange-500/10 rounded-2xl border border-orange-500/15">
+                <Activity className="w-6 h-6 text-orange-400" />
               </div>
-              
-              <div>
-                <h4 className="text-lg font-bold text-slate-200 mb-3 flex items-center gap-3">
-                  <span className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.6)]"></span>
-                  60-179 Minutes (1-2 Strikes)
-                </h4>
-                <p className="text-sm text-slate-400 leading-relaxed pl-6">Status drops to <span className="text-amber-400 font-bold tracking-wide">WARNING</span>. 1 strike is assigned at 60 mins, and a 2nd at 120 mins. Your Stability Score drops significantly (down to 20%).</p>
-              </div>
-
-              <div>
-                <h4 className="text-lg font-bold text-slate-200 mb-3 flex items-center gap-3">
-                  <span className="w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.6)]"></span>
-                  180+ Minutes (3+ Strikes)
-                </h4>
-                <p className="text-sm text-slate-400 leading-relaxed pl-6">Status falls to <span className="text-rose-400 font-bold tracking-wide">INACTIVE</span>. The system sends an automated alert to the judges flagging your team for disqualification review.</p>
-              </div>
+              <h3 className="text-2xl md:text-3xl font-black text-white tracking-tight">Core Mechanic: The Strike System</h3>
             </div>
 
-            <PremiumCard glowColor="rgba(6,182,212,0.08)" className="p-8 flex flex-col justify-center relative overflow-hidden h-full" noLift>
-              <div className="absolute top-0 right-0 w-40 h-40 bg-cyan-500/8 rounded-full blur-[60px] pointer-events-none" />
-              <h4 className="text-xl font-black text-cyan-400 mb-5 flex items-center gap-3 relative z-10 tracking-tight">
-                <Zap className="w-5 h-5" /> The Forgiveness Reset
-              </h4>
-              <p className="text-sm text-slate-300 leading-relaxed mb-7 font-medium relative z-10">
-                The strike system is perfectly automated and entirely forgiving. It purely calculates the time since your <strong className="text-white">latest valid positive GitHub push</strong>.
-              </p>
-              <div className="inline-flex items-start md:items-center gap-4 p-5 rounded-xl bg-cyan-500/8 border border-cyan-500/15 text-sm font-medium text-cyan-200 relative z-10 shadow-[0_0_30px_rgba(6,182,212,0.08)]">
-                <Github className="w-6 h-6 text-cyan-400 shrink-0 mt-0.5 md:mt-0" />
-                <span className="leading-relaxed">Pushing genuine code instantly resets your inactivity timer to 0 minutes, clearing all strikes immediately.</span>
+            <div className="grid md:grid-cols-2 gap-12 relative z-10">
+              <div className="space-y-10">
+                <div>
+                  <h4 className="text-lg font-bold text-slate-200 mb-3 flex items-center gap-3">
+                    <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.6)]"></span>
+                    On-Track (0 Strikes)
+                  </h4>
+                  <p className="text-sm text-slate-400 leading-relaxed pl-6">
+                    Status is <span className="text-emerald-400 font-bold tracking-wide">ACTIVE</span>. Your team is pushing commits on schedule.
+                  </p>
+                </div>
+                
+                <div>
+                  <h4 className="text-lg font-bold text-slate-200 mb-3 flex items-center gap-3">
+                    <span className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.6)]"></span>
+                    Missed Checkpoint / Inactive (1-2 Strikes)
+                  </h4>
+                  <p className="text-sm text-slate-400 leading-relaxed pl-6">
+                    Status drops to <span className="text-amber-400 font-bold tracking-wide">WARNING</span>. The system issues automated alerts to remind your team to commit verified code.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-lg font-bold text-slate-200 mb-3 flex items-center gap-3">
+                    <span className="w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.6)]"></span>
+                    Threshold Exceeded (3+ Strikes)
+                  </h4>
+                  <p className="text-sm text-slate-400 leading-relaxed pl-6">
+                    Status falls to <span className="text-rose-400 font-bold tracking-wide">INACTIVE</span>. The system flags your team for disqualification review.
+                  </p>
+                </div>
               </div>
-            </PremiumCard>
-          </div>
-        </motion.div>
 
-        {/* SCORING SYSTEM EXPLAINER */}
-        <motion.div 
-          initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.7, delay: 0.3, ease: [0.23, 1, 0.32, 1] }}
-          className="mt-8 rounded-3xl relative overflow-hidden"
-        >
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-500/[0.03] rounded-full blur-[120px] pointer-events-none -mr-24 -mt-24" />
-          
-          <div className="flex items-center gap-4 mb-12 relative z-10">
-            <div className="p-3.5 bg-cyan-500/10 rounded-2xl border border-cyan-500/15">
-              <Trophy className="w-6 h-6 text-cyan-400" />
+              <PremiumCard glowColor="rgba(6,182,212,0.08)" className="p-8 flex flex-col justify-center relative overflow-hidden h-full" noLift>
+                <div className="absolute top-0 right-0 w-40 h-40 bg-cyan-500/8 rounded-full blur-[60px] pointer-events-none" />
+                <h4 className="text-xl font-black text-cyan-400 mb-5 flex items-center gap-3 relative z-10 tracking-tight">
+                  <Zap className="w-5 h-5" /> The Forgiveness Reset
+                </h4>
+                <p className="text-sm text-slate-300 leading-relaxed mb-7 font-medium relative z-10">
+                  The strike system is automated and forgiving. It evaluates activity based on your <strong className="text-white">latest valid positive GitHub push</strong>.
+                </p>
+                <div className="inline-flex items-start md:items-center gap-4 p-5 rounded-xl bg-cyan-500/8 border border-cyan-500/15 text-sm font-medium text-cyan-200 relative z-10 shadow-[0_0_30px_rgba(6,182,212,0.08)]">
+                  <Github className="w-6 h-6 text-cyan-400 shrink-0 mt-0.5 md:mt-0" />
+                  <span className="leading-relaxed">Pushing genuine code updates your activity record and restores your team status to active.</span>
+                </div>
+              </PremiumCard>
             </div>
-            <h3 className="text-2xl md:text-3xl font-black text-white tracking-tight">Engine Evaluation Score</h3>
-          </div>
+          </motion.div>
+        )}
 
-          <p className="text-slate-400 max-w-3xl leading-relaxed mb-10 relative z-10 text-base">
-            The HackArena master server constantly calculates a precise <strong className="text-white">0.0 to 10.0</strong> technical health score for your team. This score is updated in real-time on your dashboard and provides judges with objective technical data.
-          </p>
+        {/* SCORING SYSTEM EXPLAINER (Shown only when Scoring is ON) */}
+        {features.scoring && (
+          <motion.div 
+            initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.7, delay: 0.3, ease: [0.23, 1, 0.32, 1] }}
+            className="mt-8 rounded-3xl relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-500/[0.03] rounded-full blur-[120px] pointer-events-none -mr-24 -mt-24" />
+            
+            <div className="flex items-center gap-4 mb-12 relative z-10">
+              <div className="p-3.5 bg-cyan-500/10 rounded-2xl border border-cyan-500/15">
+                <Trophy className="w-6 h-6 text-cyan-400" />
+              </div>
+              <h3 className="text-2xl md:text-3xl font-black text-white tracking-tight">Engine Evaluation Score</h3>
+            </div>
 
-          <div className="grid md:grid-cols-3 gap-5 relative z-10">
-            <PremiumCard glowColor="rgba(251,146,60,0.1)" className="p-7">
-              <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2.5 group-hover:translate-y-[-2px] transition-transform duration-300">
-                <Github className="w-5 h-5 text-orange-400 group-hover:scale-110 transition-transform duration-300" /> Activity (40%)
-              </h4>
-              <p className="text-sm text-slate-400 leading-relaxed mb-4 group-hover:text-slate-300 transition-colors duration-300">Scores how recently you have pushed code. It degrades linearly over 24 hours.</p>
-              <div className="text-xs font-bold px-3 py-1.5 bg-orange-500/10 text-orange-300 rounded-lg max-w-fit tracking-wide">Push code to lock at 100%</div>
-            </PremiumCard>
+            <p className="text-slate-400 max-w-3xl leading-relaxed mb-10 relative z-10 text-base">
+              The HackArena master server constantly calculates a precise <strong className="text-white">0.0 to 10.0</strong> technical health score for your team. This score is updated in real-time on your dashboard and provides judges with objective technical data.
+            </p>
 
-            <PremiumCard glowColor="rgba(52,211,153,0.1)" className="p-7">
-              <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2.5 group-hover:translate-y-[-2px] transition-transform duration-300">
-                <HeartPulse className="w-5 h-5 text-emerald-400 group-hover:scale-110 transition-transform duration-300" /> Deployment (40%)
-              </h4>
-              <p className="text-sm text-slate-400 leading-relaxed mb-4 group-hover:text-slate-300 transition-colors duration-300">Scores your live link presence. 100% if the site resolves rapidly, 50% if slow, 0% if down or missing.</p>
-              <div className="text-xs font-bold px-3 py-1.5 bg-emerald-500/10 text-emerald-300 rounded-lg max-w-fit tracking-wide">Submit a working live link</div>
-            </PremiumCard>
+            <div className="grid md:grid-cols-3 gap-5 relative z-10">
+              <PremiumCard glowColor="rgba(251,146,60,0.1)" className="p-7">
+                <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2.5 group-hover:translate-y-[-2px] transition-transform duration-300">
+                  <Github className="w-5 h-5 text-orange-400 group-hover:scale-110 transition-transform duration-300" /> Activity ({features.strikes ? "40%" : "50%"})
+                </h4>
+                <p className="text-sm text-slate-400 leading-relaxed mb-4 group-hover:text-slate-300 transition-colors duration-300">Scores how recently you have pushed code. It degrades linearly over 24 hours.</p>
+                <div className="text-xs font-bold px-3 py-1.5 bg-orange-500/10 text-orange-300 rounded-lg max-w-fit tracking-wide">Push code to lock at 100%</div>
+              </PremiumCard>
 
-            <PremiumCard glowColor="rgba(129,140,248,0.1)" className="p-7">
-              <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2.5 group-hover:translate-y-[-2px] transition-transform duration-300">
-                <ShieldCheck className="w-5 h-5 text-indigo-400 group-hover:scale-110 transition-transform duration-300" /> Stability (20%)
-              </h4>
-              <p className="text-sm text-slate-400 leading-relaxed mb-4 group-hover:text-slate-300 transition-colors duration-300">Tied directly to your Strike Count. 0 strikes = 100%, 1 strike = 50%, 2 strikes = 20%, 3+ strikes = 0%.</p>
-              <div className="text-xs font-bold px-3 py-1.5 bg-indigo-500/10 text-indigo-300 rounded-lg max-w-fit tracking-wide">Keep strikes at 0</div>
-            </PremiumCard>
-          </div>
-        </motion.div>
+              <PremiumCard glowColor="rgba(52,211,153,0.1)" className="p-7">
+                <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2.5 group-hover:translate-y-[-2px] transition-transform duration-300">
+                  <HeartPulse className="w-5 h-5 text-emerald-400 group-hover:scale-110 transition-transform duration-300" /> Deployment ({features.strikes ? "40%" : "50%"})
+                </h4>
+                <p className="text-sm text-slate-400 leading-relaxed mb-4 group-hover:text-slate-300 transition-colors duration-300">Scores your live link presence. 100% if the site resolves rapidly, 50% if slow, 0% if down or missing.</p>
+                <div className="text-xs font-bold px-3 py-1.5 bg-emerald-500/10 text-emerald-300 rounded-lg max-w-fit tracking-wide">Submit a working live link</div>
+              </PremiumCard>
+
+              {features.strikes && (
+                <PremiumCard glowColor="rgba(129,140,248,0.1)" className="p-7">
+                  <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2.5 group-hover:translate-y-[-2px] transition-transform duration-300">
+                    <ShieldCheck className="w-5 h-5 text-indigo-400 group-hover:scale-110 transition-transform duration-300" /> Stability (20%)
+                  </h4>
+                  <p className="text-sm text-slate-400 leading-relaxed mb-4 group-hover:text-slate-300 transition-colors duration-300">Tied directly to your Strike Count. 0 strikes = 100%, 1 strike = 50%, 2 strikes = 20%, 3+ strikes = 0%.</p>
+                  <div className="text-xs font-bold px-3 py-1.5 bg-indigo-500/10 text-indigo-300 rounded-lg max-w-fit tracking-wide">Keep strikes at 0</div>
+                </PremiumCard>
+              )}
+            </div>
+          </motion.div>
+        )}
       </motion.div>
 
       {/* HOW IT WORKS */}
@@ -349,7 +390,7 @@ export default function Home() {
           <p className="text-slate-500 font-medium text-lg">The technical details of the HackArena architecture.</p>
         </div>
         
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className={cn("grid gap-5", features.strikes ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3")}>
           <FeatureItem
             icon={<Github className="w-6 h-6 text-slate-200" />}
             title="Repository Tracking"
@@ -357,14 +398,19 @@ export default function Home() {
           />
           <FeatureItem
             icon={<Activity className="w-6 h-6 text-orange-400" />}
-            title="Hourly Activity Checks"
-            desc="Push code within 60 minutes to stay active. Over 120 minutes leads to strikes."
+            title={features.checkpoints ? `${features.commitInterval}-Hour Checkpoints` : "Continuous Activity"}
+            desc={features.checkpoints 
+              ? `Commit and push before each ${features.commitInterval}-hour checkpoint deadline.`
+              : "Push code regularly throughout development to maintain active status."
+            }
           />
-          <FeatureItem
-            icon={<ShieldCheck className="w-6 h-6 text-rose-400" />}
-            title="Anti-Cheat & Strikes"
-            desc="Accumulate 3 strikes and your team is automatically disqualified."
-          />
+          {features.strikes && (
+            <FeatureItem
+              icon={<ShieldCheck className="w-6 h-6 text-rose-400" />}
+              title="Anti-Cheat & Strikes"
+              desc="Accumulate 3 strikes and your team is flagged for disqualification review."
+            />
+          )}
           <FeatureItem
             icon={<Code className="w-6 h-6 text-emerald-400" />}
             title="Final Submission"

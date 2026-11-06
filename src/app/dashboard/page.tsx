@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { Loader2, LogOut, ShieldAlert, Github, ExternalLink, Activity, AlertTriangle, Trophy, Copy, CheckCircle2, AlertCircle, Zap, Users, Target, ArrowLeft } from "lucide-react";
+import { Loader2, LogOut, ShieldAlert, Github, ExternalLink, Activity, AlertTriangle, Trophy, Copy, CheckCircle2, AlertCircle, Zap, Users, Target, ArrowLeft, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type TeamData = {
@@ -26,6 +26,12 @@ export default function DashboardPage() {
   const [team, setTeam] = useState<TeamData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const [features, setFeatures] = useState({
+    scoring: true,
+    strikes: true,
+    checkpoints: true,
+    commitInterval: 6
+  });
   const router = useRouter();
 
   useEffect(() => {
@@ -38,17 +44,36 @@ export default function DashboardPage() {
           return;
         }
 
-        const { data: teamData, error: dbError } = await supabase
-          .from("teams")
-          .select("*")
-          .eq("auth_user_id", session.user.id)
-          .maybeSingle();
+        const [teamRes, settingsRes] = await Promise.all([
+          supabase
+            .from("teams")
+            .select("*")
+            .eq("auth_user_id", session.user.id)
+            .maybeSingle(),
+          fetch("/api/settings")
+        ]);
+
+        let currentSettings: any = null;
+        if (settingsRes.ok) {
+          currentSettings = await settingsRes.json();
+          setFeatures({
+            scoring: currentSettings.feature_scoring_enabled ?? true,
+            strikes: currentSettings.feature_strikes_enabled ?? true,
+            checkpoints: currentSettings.feature_checkpoints_enabled ?? true,
+            commitInterval: currentSettings.commit_interval_hours ?? 6
+          });
+        }
+
+        const activeEventId = currentSettings?.event_id ?? 1;
+        const { data: teamData, error: dbError } = teamRes;
 
         if (dbError) {
           console.error(dbError);
           setError("Failed to load team data. Please try again later.");
         } else if (!teamData) {
           setError("Access Error: No team found for this account.");
+        } else if (teamData.event_id && teamData.event_id !== activeEventId) {
+          setError(`Archived Account: This team participated in Hackathon #${teamData.event_id} (Concluded). A new team registration is required for Hackathon #${activeEventId}.`);
         } else {
           setTeam(teamData);
         }
@@ -167,12 +192,12 @@ export default function DashboardPage() {
           <div className="space-y-6">
             
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+            <div className={cn("grid gap-5", features.strikes ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3" : "grid-cols-1 sm:grid-cols-2")}>
               {/* Team Name */}
               <TacticalCard accentColor="orange">
                 <p className="text-[10px] font-bold text-[#a78b7d] uppercase tracking-[0.2em] mb-3">Callsign</p>
                 <h3 className="text-xl font-black text-white truncate tracking-tight">{team.team_name}</h3>
-                {team.score !== undefined && (
+                {features.scoring && team.score !== undefined && (
                   <div className="mt-3 flex items-center gap-2">
                     <Trophy className="w-3.5 h-3.5 text-amber-400" />
                     <span className="text-sm font-bold text-amber-400">{team.score.toFixed(1)}</span>
@@ -195,23 +220,37 @@ export default function DashboardPage() {
                 </div>
               </TacticalCard>
 
-              {/* Strikes */}
-              <TacticalCard accentColor={team.strike_count > 0 ? 'rose' : 'neutral'}>
-                <p className={cn("text-[10px] font-bold uppercase tracking-[0.2em] mb-3", team.strike_count > 0 ? "text-rose-400/80" : "text-[#a78b7d]")}>Threat Level</p>
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className={cn("w-5 h-5", team.strike_count > 0 ? "text-rose-500" : "text-[#584237]")} />
-                  <span className="text-2xl font-black text-white">{team.strike_count}</span>
-                  <span className="text-[#584237] text-sm font-bold mt-1">/ 3</span>
-                </div>
-                {team.strike_count > 0 && (
-                  <div className="mt-2 flex gap-1">
-                    {[0, 1, 2].map(i => (
-                      <div key={i} className={cn("h-1 flex-1 rounded-full", i < team.strike_count ? "bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.4)]" : "bg-white/[0.05]")} />
-                    ))}
+              {/* Strikes (Threat Level) */}
+              {features.strikes && (
+                <TacticalCard accentColor={team.strike_count > 0 ? 'rose' : 'neutral'}>
+                  <p className={cn("text-[10px] font-bold uppercase tracking-[0.2em] mb-3", team.strike_count > 0 ? "text-rose-400/80" : "text-[#a78b7d]")}>Threat Level</p>
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className={cn("w-5 h-5", team.strike_count > 0 ? "text-rose-500" : "text-[#584237]")} />
+                    <span className="text-2xl font-black text-white">{team.strike_count}</span>
+                    <span className="text-[#584237] text-sm font-bold mt-1">/ 3</span>
                   </div>
-                )}
-              </TacticalCard>
+                  {team.strike_count > 0 && (
+                    <div className="mt-2 flex gap-1">
+                      {[0, 1, 2].map(i => (
+                        <div key={i} className={cn("h-1 flex-1 rounded-full", i < team.strike_count ? "bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.4)]" : "bg-white/[0.05]")} />
+                      ))}
+                    </div>
+                  )}
+                </TacticalCard>
+              )}
             </div>
+
+            {/* Checkpoint Cadence Banner (if Checkpoints are ON) */}
+            {features.checkpoints && (
+              <div className="p-4 rounded-xl bg-cyan-500/5 border border-cyan-500/15 flex items-center justify-between text-xs text-slate-300">
+                <div className="flex items-center gap-3">
+                  <Clock className="w-4 h-4 text-cyan-400 shrink-0" />
+                  <span>
+                    <strong className="text-white">Commit Checkpoints Active:</strong> Deadlines occur every {features.commitInterval} hours. Ensure valid repository pushes before each checkpoint.
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Details Panel */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -367,7 +406,6 @@ export default function DashboardPage() {
     </div>
   );
 }
-
 
 function TacticalCard({ children, accentColor = 'orange' }: { children: React.ReactNode; accentColor?: string }) {
   const accentMap: Record<string, string> = {

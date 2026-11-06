@@ -10,6 +10,20 @@ export async function POST(request: Request) {
   }
 
   try {
+    // 1. Check if Scoring system is enabled and get current active event
+    const { data: settings } = await supabaseAdmin
+      .from("settings")
+      .select("event_id, feature_scoring_enabled, feature_strikes_enabled")
+      .eq("id", 1)
+      .single();
+
+    if (settings?.feature_scoring_enabled === false) {
+      return NextResponse.json(
+        { error: "Scoring system is disabled for this event." },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const { team_id, judge_score } = body;
 
@@ -26,7 +40,7 @@ export async function POST(request: Request) {
     // Fetch the team's current metrics to instantly calculate the new total score without waiting for cron
     const { data: team, error: fetchError } = await supabaseAdmin
       .from("teams")
-      .select("strike_count, deployment_status, last_push, created_at")
+      .select("strike_count, deployment_status, last_push, created_at, event_id")
       .eq("id", team_id)
       .single();
 
@@ -34,12 +48,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Team not found" }, { status: 404 });
     }
 
+    const activeEventId = settings?.event_id || 1;
+    if (team.event_id && team.event_id !== activeEventId) {
+      return NextResponse.json({ error: "Cannot modify score of a team from a previous event." }, { status: 403 });
+    }
+
+    const strikesEnabled = settings?.feature_strikes_enabled !== false;
+
     const newFinalScore = calculateTeamScore(
       scoreNum,
       team.strike_count,
       team.deployment_status,
       team.last_push,
-      team.created_at
+      team.created_at,
+      strikesEnabled
     );
 
     const { error: updateError } = await supabaseAdmin

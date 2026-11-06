@@ -7,12 +7,11 @@ import { calculateTeamScore } from "@/lib/scoring";
 import { verifyAdminAuth } from "@/lib/admin-auth";
 import { isSafePublicUrl, safePingUrl } from "@/lib/url-validation";
 
-// export const maxDuration = 60; // Max allowed for Vercel Hobby/Pro depending on plan, helps prevent raw timeouts
 export const dynamic = "force-dynamic";
 
 // Evaluation Constants
 const BATCH_SIZE = 5;
-const DEPLOYMENT_TIMEOUT_MS = 4000; // Reduced to 4 seconds to prevent serverless function timeout
+const DEPLOYMENT_TIMEOUT_MS = 4000; // 4 seconds to prevent serverless function timeout
 
 async function pingDeployment(url: string | null): Promise<{ status: "live" | "slow" | "down" | "pending"; time: number }> {
   if (!url) return { status: "pending", time: 0 };
@@ -35,9 +34,6 @@ async function pingDeployment(url: string | null): Promise<{ status: "live" | "s
   }
 }
 
-/**
- * Constant-time comparison between two strings to prevent timing attacks.
- */
 function safeCompareTokens(provided: string, expected: string): boolean {
   const bufA = Buffer.from(provided, "utf-8");
   const bufB = Buffer.from(expected, "utf-8");
@@ -89,9 +85,21 @@ async function executeMonitoring() {
     }
     // ---------------------------------
 
-    const { data: teams, error: fetchError } = await supabaseAdmin
-      .from("teams")
-      .select("*");
+    // Active Feature & Mode Evaluation
+    const isLegacyMode = !settings?.feature_config_initialized;
+    const isCheckpointsEnabled = settings?.feature_checkpoints_enabled !== false;
+    const isStrikesEnabled = settings?.feature_strikes_enabled !== false;
+    const isScoringEnabled = settings?.feature_scoring_enabled !== false;
+    const commitIntervalHours = settings?.commit_interval_hours || 6;
+    const activeEventId = settings?.event_id || 1;
+
+    // Fetch teams: In new mode, isolate to current active event_id; in legacy mode, monitor current teams
+    let teamsQuery = supabaseAdmin.from("teams").select("*");
+    if (!isLegacyMode) {
+      teamsQuery = teamsQuery.eq("event_id", activeEventId);
+    }
+
+    const { data: teams, error: fetchError } = await teamsQuery;
 
     if (fetchError) throw fetchError;
     if (!teams || teams.length === 0) {
@@ -111,7 +119,7 @@ async function executeMonitoring() {
     const now = new Date().getTime();
 
     if (trackingFrozen) {
-      // Just categorize existing teams for the Discord report without doing any API calls or DB updates
+      // Categorize teams for status report without writing DB mutations
       for (const team of teams) {
         if (team.status === "active") report.active.push(team.team_name);
         else if (team.status === "warning") report.warning.push(team.team_name);
@@ -120,7 +128,7 @@ async function executeMonitoring() {
 
         if (team.deployment_status === "down" && team.deployment_url) report.down.push(team.team_name);
         
-        if (team.strike_count >= 3 && team.status !== "disqualified") {
+        if (isStrikesEnabled && team.strike_count >= 3 && team.status !== "disqualified") {
           report.action_required.push(`${team.team_name} (Strikes: ${team.strike_count})`);
         }
       }
@@ -131,93 +139,194 @@ async function executeMonitoring() {
         
         const batchResults = await Promise.all(
           batch.map(async (team) => {
-            // Short-circuit: Disqualified teams are just reported, never evaluated/pinged again.
             if (team.status === "disqualified") {
               report.disqualified.push(team.team_name);
               return null;
             }
 
-            // 1. GitHub Evaluation
-            let lastPushDate = await getLatestPushTime(team.repo_url);
-            
-            let newStatus = team.status;
-            let newStrikes = team.strike_count;
-            let lastPushTimeStr = team.last_push; 
-            
-            const regTime = new Date(team.created_at).getTime();
-            let isValidHackathonPush = false;
-            
-            // CRITICAL FIX: If GitHub API failed (e.g. rate limit), fallback to the team's last known push time
-            const effectiveLastPushDate = lastPushDate || (team.last_push ? new Date(team.last_push) : null);
+            // 1. GitHub Push Fetch (Fault-tolerant)
+            let lastPushDate: Date | null = null;
+            let githubApiSuccess = true;
+            try {
+              lastPushDate = await getLatestPushTime(team.repo_url);
+            } catch (err) {
+              githubApiSuccess = false;
+            }
 
+            let lastPushTimeStr = team.last_push;
+            const regTime = new Date(team.created_at).getTime();
+
+            // Fallback to team's last known push if GitHub call failed or returned null
+            const effectiveLastPushDate = lastPushDate || (team.last_push ? new Date(team.last_push) : null);
             if (effectiveLastPushDate && effectiveLastPushDate.getTime() > regTime) {
-              isValidHackathonPush = true;
               lastPushTimeStr = effectiveLastPushDate.toISOString();
             }
 
-            // If they haven't made a valid push since registering, the 60-min timer starts from their registration time.
-            const referenceTime = isValidHackathonPush ? effectiveLastPushDate!.getTime() : regTime;
-            // Math.max(0, ...) strictly prevents negative time differences from clock skew which would cause -1 strikes
-            const diffMins = Math.max(0, (now - referenceTime) / (1000 * 60));
+            let newStatus = team.status;
+            let newStrikes = team.strike_count;
+            let newCheckpointStatus = team.checkpoint_status || "on_track";
+            let newCheckpointsMissed = team.checkpoints_missed || 0;
+            let lastProcessedCheckpoint = team.last_processed_checkpoint || 0;
 
-            // Stateless Strike Calculation: 1 strike for every full 60 mins missed
-            newStrikes = Math.floor(diffMins / 60);
+            // 2. Mode Evaluation
+            if (isLegacyMode) {
+              // =======================================================
+              // LEGACY MODE: Exact 60-Minute Monitoring for Active Event
+              // =======================================================
+              const referenceTime = (effectiveLastPushDate && effectiveLastPushDate.getTime() > regTime) 
+                ? effectiveLastPushDate.getTime() 
+                : regTime;
+              const diffMins = Math.max(0, (now - referenceTime) / (1000 * 60));
 
-            if (newStrikes === 0) {
-              newStatus = "active";
-            } else if (newStrikes <= 2) {
-              newStatus = "warning";
+              // Stateless 60-minute interval strike calculation
+              newStrikes = Math.floor(diffMins / 60);
+
+              if (newStrikes === 0) {
+                newStatus = "active";
+              } else if (newStrikes <= 2) {
+                newStatus = "warning";
+              } else {
+                newStatus = "inactive";
+              }
             } else {
-              newStatus = "inactive";
+              // =======================================================
+              // NEW EVENT MODE: Configurable Checkpoint & Feature Controls
+              // =======================================================
+              if (isCheckpointsEnabled && settings?.timer_start_time) {
+                const eventStartTime = new Date(settings.timer_start_time).getTime();
+                const elapsedMs = (settings.timer_accumulated_ms || 0) + Math.max(0, now - eventStartTime);
+                const intervalMs = commitIntervalHours * 60 * 60 * 1000;
+                const completedCheckpointIndex = Math.floor(elapsedMs / intervalMs);
+
+                // Check if a new checkpoint window has closed that hasn't been evaluated yet
+                if (completedCheckpointIndex >= 1 && lastProcessedCheckpoint < completedCheckpointIndex) {
+                  const checkpointWindowStart = eventStartTime + (completedCheckpointIndex - 1) * intervalMs;
+                  const checkpointWindowEnd = eventStartTime + completedCheckpointIndex * intervalMs;
+
+                  // Never issue automatic strikes on GitHub API failure
+                  if (githubApiSuccess) {
+                    const pushTimeMs = effectiveLastPushDate ? effectiveLastPushDate.getTime() : 0;
+                    const madePushInWindow = pushTimeMs >= checkpointWindowStart && pushTimeMs <= checkpointWindowEnd;
+                    const reportedStatus = madePushInWindow ? "on_track" : "missed";
+
+                    // Atomic Database Execution via PostgreSQL RPC:
+                    // Records checkpoint_logs, enforces strike rules, updates team checkpoint state in a single transaction
+                    try {
+                      const { data: rpcRes, error: rpcErr } = await supabaseAdmin.rpc("process_team_checkpoint", {
+                        p_team_id: team.id,
+                        p_event_id: activeEventId,
+                        p_checkpoint_number: completedCheckpointIndex,
+                        p_checkpoint_status: reportedStatus
+                      });
+
+                      if (rpcRes?.already_processed) {
+                        // Concurrently or previously processed: revert optimistic in-memory strike
+                        newStrikes = team.strike_count;
+                      } else if (rpcRes?.new_strike_count !== undefined) {
+                        newStrikes = rpcRes.new_strike_count;
+                        newCheckpointStatus = rpcRes.checkpoint_status || reportedStatus;
+                        newCheckpointsMissed = rpcRes.checkpoints_missed ?? newCheckpointsMissed;
+                        if (rpcRes?.new_status) {
+                          newStatus = rpcRes.new_status;
+                        }
+                      }
+                    } catch (e) {
+                      // Fallback for pre-migration state
+                      if (madePushInWindow) {
+                        newCheckpointStatus = "on_track";
+                      } else {
+                        newCheckpointsMissed += 1;
+                        if (newCheckpointsMissed === 1) {
+                          newCheckpointStatus = "warning";
+                        } else {
+                          newCheckpointStatus = "missed";
+                          if (isStrikesEnabled) {
+                            newStrikes = team.strike_count + 1;
+                          }
+                        }
+                      }
+                    }
+                  }
+
+                  // Advance checkpoint index so subsequent cron runs in the same interval NEVER duplicate strikes
+                  lastProcessedCheckpoint = completedCheckpointIndex;
+                }
+              }
+
+              // In new mode, team status is never overwritten by checkpoint status.
+              // Keep checkpoint_status separate. Status reflects team operational state.
+              if (team.status !== "disqualified") {
+                if (isStrikesEnabled && newStrikes >= 3) {
+                  newStatus = "inactive";
+                } else {
+                  newStatus = team.status === "inactive" ? "active" : team.status;
+                }
+              }
             }
 
-            // 2. Deployment Evaluation (with retry logic)
+            // 3. Deployment Evaluation (Always executes, even if checkpoints are OFF)
             let deployEval = await pingDeployment(team.deployment_url);
             if (deployEval.status === "down" && team.deployment_url) {
-              // Give it one immediate retry if it failed (cold start anomaly)
               deployEval = await pingDeployment(team.deployment_url);
             }
-            
-            const finalScore = calculateTeamScore(
-              team.judge_score,
-              newStrikes,
-              deployEval.status,
-              lastPushTimeStr,
-              team.created_at
-            );
 
-            // Populating report with all evaluated active/warning/inactive teams
+            // 4. Score Calculation (Strictly skipped if Scoring is OFF)
+            let finalScore = team.score;
+            if (isScoringEnabled) {
+              finalScore = calculateTeamScore(
+                team.judge_score,
+                newStrikes,
+                deployEval.status,
+                lastPushTimeStr,
+                team.created_at,
+                isStrikesEnabled
+              );
+            }
+
+            // Report population
             if (newStatus === "active") report.active.push(team.team_name);
             else if (newStatus === "warning") report.warning.push(team.team_name);
             else if (newStatus === "inactive") report.inactive.push(team.team_name);
-            else if (newStatus === "disqualified") report.disqualified.push(team.team_name); // newly disqualified this run
+            else if (newStatus === "disqualified") report.disqualified.push(team.team_name);
 
             if (deployEval.status === "down" && team.deployment_url) report.down.push(team.team_name);
 
-            // Flag teams with 3+ strikes for manual admin disqualification
-            if (newStrikes >= 3 && newStatus !== "disqualified") {
+            if (isStrikesEnabled && newStrikes >= 3 && newStatus !== "disqualified") {
               report.action_required.push(`${team.team_name} (Strikes: ${newStrikes})`);
             }
 
-            return {
+            // 5. Build safe update payload
+            const updatePayload: any = {
               id: team.id,
               status: newStatus,
-              strike_count: newStrikes,
               last_push: lastPushTimeStr,
               deployment_status: deployEval.status,
-              response_time: deployEval.time,
-              score: finalScore
+              response_time: deployEval.time
             };
+
+            if (isLegacyMode || isStrikesEnabled) {
+              updatePayload.strike_count = newStrikes;
+            }
+
+            if (!isLegacyMode) {
+              updatePayload.checkpoint_status = newCheckpointStatus;
+              updatePayload.checkpoints_missed = newCheckpointsMissed;
+              updatePayload.last_processed_checkpoint = lastProcessedCheckpoint;
+            }
+
+            if (isScoringEnabled) {
+              updatePayload.score = finalScore;
+            }
+
+            return updatePayload;
           })
         );
         
-        // Filter out nulls (disqualified teams that were skipped)
         updates.push(...batchResults.filter(Boolean));
       }
     }
 
     if (!trackingFrozen) {
-      // Apply strict sequential updates to DB to avoid lock contention
       for (const update of updates) {
         if (!update) continue;
         await supabaseAdmin.from("teams").update(update).eq("id", update.id);
@@ -245,48 +354,43 @@ ${formatList(report.disqualified)}
 
 ${report.action_required.length > 0 ? `\n🚨 **ADMIN ACTION REQUIRED (Recommend Disqualification)**\n${formatList(report.action_required)}\n` : ''}`.trim();
 
-    // Discord Report
     await sendDiscordNotification({
       content: "📊 **Hackathon Status Report**\n\n" + customMessage,
     });
 
-    return NextResponse.json({ success: true, processed: updates.length, updates });
+    return NextResponse.json({
+      success: true,
+      mode: isLegacyMode ? "legacy_60m" : "configurable_checkpoints",
+      teams_monitored: teams.length,
+      updates_applied: updates.length,
+      tracking_frozen: trackingFrozen,
+      report,
+    });
   } catch (error: any) {
-    console.error("Cron Monitor Error:", error);
+    console.error("Cron monitor error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-export async function GET(request: Request) {
+export async function POST(request: Request) {
+  const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
-  // Case A — CRON_SECRET is missing or empty: Fail closed before executing any monitoring logic
-  if (!cronSecret || cronSecret.trim() === "") {
-    return new Response("Cron secret is not configured.", { status: 503 });
+  if (cronSecret && authHeader) {
+    const token = authHeader.replace("Bearer ", "").trim();
+    if (safeCompareTokens(token, cronSecret.trim())) {
+      return executeMonitoring();
+    }
   }
 
-  // Case B — Missing or incorrect authorization header
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return new Response("Unauthorized", { status: 401 });
+  const adminAuth = verifyAdminAuth(request);
+  if (adminAuth.authorized) {
+    return executeMonitoring();
   }
 
-  const token = authHeader.slice(7).trim();
-  if (!token || !safeCompareTokens(token, cronSecret)) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
-  // Case C — Correct Bearer token: Execute scheduled monitoring
-  return executeMonitoring();
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-export async function POST(request: Request) {
-  // Manual trigger from Admin Dashboard: enforce administrator authorization
-  const auth = verifyAdminAuth(request);
-  if (!auth.authorized) {
-    return auth.response;
-  }
-
-  // Authenticated administrator authorized: execute monitoring logic
-  return executeMonitoring();
+export async function GET(request: Request) {
+  return POST(request);
 }

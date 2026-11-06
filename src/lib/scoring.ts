@@ -3,7 +3,8 @@ export function calculateTeamScore(
   strikeCount: number,
   deploymentStatus: "live" | "slow" | "down" | "pending" | null,
   lastPush: string | null,
-  createdAt: string
+  createdAt: string,
+  strikesEnabled: boolean = true
 ): number {
   const now = new Date().getTime();
   const regTime = new Date(createdAt).getTime();
@@ -17,10 +18,14 @@ export function calculateTeamScore(
   if (deploymentStatus === "live") deploymentScore = 100;
   else if (deploymentStatus === "slow") deploymentScore = 50;
 
-  let stabilityScore = 0;
-  if (strikeCount === 0) stabilityScore = 100;
-  else if (strikeCount === 1) stabilityScore = 50;
-  else if (strikeCount === 2) stabilityScore = 20;
+  // When strikes are disabled, stability penalty is removed (fixed at 100%)
+  let stabilityScore = 100;
+  if (strikesEnabled) {
+    if (strikeCount === 0) stabilityScore = 100;
+    else if (strikeCount === 1) stabilityScore = 50;
+    else if (strikeCount === 2) stabilityScore = 20;
+    else stabilityScore = 0;
+  }
 
   const behaviorScore = (activityScore * 0.4) + (deploymentScore * 0.4) + (stabilityScore * 0.2); 
   

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Trophy, ArrowLeft, Loader2, Save, Activity, ShieldAlert, CheckCircle2, Download } from "lucide-react";
+import { Trophy, ArrowLeft, Loader2, Save, Activity, ShieldAlert, CheckCircle2, Download, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -24,16 +24,28 @@ type Team = {
 export default function AdminJudgingMatrix() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
+  const [scoringEnabled, setScoringEnabled] = useState(true);
+  const [strikesEnabled, setStrikesEnabled] = useState(true);
 
   useEffect(() => {
-    fetchTeams();
+    fetchData();
   }, []);
 
-  const fetchTeams = async () => {
+  const fetchData = async () => {
     try {
-      const res = await fetch("/api/admin/teams");
-      if (res.ok) {
-        const data = await res.json();
+      const [teamsRes, settingsRes] = await Promise.all([
+        fetch("/api/admin/teams"),
+        fetch("/api/settings")
+      ]);
+
+      if (settingsRes.ok) {
+        const settings = await settingsRes.json();
+        setScoringEnabled(settings.feature_scoring_enabled ?? true);
+        setStrikesEnabled(settings.feature_strikes_enabled ?? true);
+      }
+
+      if (teamsRes.ok) {
+        const data = await teamsRes.json();
         // Sort active/top teams first
         const sorted = data.sort((a: Team, b: Team) => {
            if (a.status === "disqualified" && b.status !== "disqualified") return 1;
@@ -49,22 +61,26 @@ export default function AdminJudgingMatrix() {
     }
   };
 
-
-
-
   const handleExportCSV = () => {
     if (!teams || teams.length === 0) return;
     
-    const headers = ["Team Name", "Status", "Engine Score", "Strikes", "Judge Score", "Last Push", "Deployment"];
-    const rows = teams.map(t => [
-      `"${t.team_name.replace(/"/g, '""')}"`,
-      t.status,
-      t.score || 0,
-      t.strike_count,
-      t.judge_score !== null ? t.judge_score : "",
-      `"${t.last_push || ''}"`,
-      `"${t.deployment_status || ''}"`
-    ]);
+    const headers = ["Team Name", "Status"];
+    if (scoringEnabled) headers.push("Engine Score");
+    if (strikesEnabled) headers.push("Strikes");
+    if (scoringEnabled) headers.push("Judge Score");
+    headers.push("Last Push", "Deployment");
+
+    const rows = teams.map(t => {
+      const r = [
+        `"${t.team_name.replace(/"/g, '""')}"`,
+        t.status
+      ];
+      if (scoringEnabled) r.push(String(t.score || 0));
+      if (strikesEnabled) r.push(String(t.strike_count));
+      if (scoringEnabled) r.push(t.judge_score !== null ? String(t.judge_score) : "");
+      r.push(`"${t.last_push || ''}"`, `"${t.deployment_status || ''}"`);
+      return r;
+    });
     
     const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -91,11 +107,22 @@ export default function AdminJudgingMatrix() {
               <Trophy className="w-8 h-8" /> Final Judging Matrix
             </h1>
             <p className="text-slate-400 mt-2 max-w-2xl">
-              Privately evaluate and assign final points to participants. The matrix shows objective, automated engine metrics.
+              Privately evaluate and inspect participant submissions.
             </p>
           </div>
-          <Button onClick={handleExportCSV} variant="outline" className="bg-slate-900/50 border-white/10 text-slate-300 hover:bg-rose-900/30 hover:text-rose-300 hover:border-rose-500/50 transition-all rounded-xl text-xs h-9 self-start md:self-auto"><Download className="w-3.5 h-3.5 mr-1.5" />Export CSV</Button>
+          <Button onClick={handleExportCSV} variant="outline" className="bg-slate-900/50 border-white/10 text-slate-300 hover:bg-rose-900/30 hover:text-rose-300 hover:border-rose-500/50 transition-all rounded-xl text-xs h-9 self-start md:self-auto">
+            <Download className="w-3.5 h-3.5 mr-1.5" />Export CSV
+          </Button>
         </header>
+
+        {!scoringEnabled && (
+          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3 text-amber-300 text-sm">
+            <AlertCircle className="w-5 h-5 shrink-0 text-amber-400" />
+            <div>
+              <span className="font-bold">Scoring System is Disabled:</span> Numerical scoring and point tallies are inactive for this event. Participant projects can be reviewed directly via their deployments and repositories.
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center p-20">
@@ -108,9 +135,13 @@ export default function AdminJudgingMatrix() {
                 <thead className="text-xs uppercase bg-slate-900/80 text-slate-400 border-b border-white/10">
                   <tr>
                     <th className="px-6 py-4 font-bold tracking-widest text-slate-300">Team Name</th>
-                    <th className="px-6 py-4 font-bold tracking-widest text-slate-300">Engine Stats</th>
+                    {(scoringEnabled || strikesEnabled) && (
+                      <th className="px-6 py-4 font-bold tracking-widest text-slate-300">Engine Stats</th>
+                    )}
                     <th className="px-6 py-4 font-bold tracking-widest text-slate-300">Live Health</th>
-                    <th className="px-6 py-4 font-bold tracking-widest text-rose-400 text-right">Final Score</th>
+                    {scoringEnabled && (
+                      <th className="px-6 py-4 font-bold tracking-widest text-rose-400 text-right">Final Score</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -132,18 +163,24 @@ export default function AdminJudgingMatrix() {
                         </td>
 
                         {/* Engine Stats */}
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col gap-1.5">
-                            <div className="flex items-center gap-2 text-slate-300">
-                               <Activity className="w-4 h-4 text-cyan-400" />
-                               <span>Raw Pts: <strong className="text-white">{team.score}</strong></span>
+                        {(scoringEnabled || strikesEnabled) && (
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1.5">
+                              {scoringEnabled && (
+                                <div className="flex items-center gap-2 text-slate-300">
+                                   <Activity className="w-4 h-4 text-cyan-400" />
+                                   <span>Raw Pts: <strong className="text-white">{team.score}</strong></span>
+                                </div>
+                              )}
+                              {strikesEnabled && (
+                                <div className="flex items-center gap-2 text-slate-400 text-xs">
+                                   <ShieldAlert className="w-3.5 h-3.5" />
+                                   <span>{team.strike_count} Strikes</span>
+                                </div>
+                              )}
                             </div>
-                            <div className="flex items-center gap-2 text-slate-400 text-xs">
-                               <ShieldAlert className="w-3.5 h-3.5" />
-                               <span>{team.strike_count} Strikes</span>
-                            </div>
-                          </div>
-                        </td>
+                          </td>
+                        )}
 
                         {/* Live Health */}
                         <td className="px-6 py-4">
@@ -158,13 +195,15 @@ export default function AdminJudgingMatrix() {
                         </td>
 
                         {/* Final Exact Score */}
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-end gap-3">
-                             <div className="w-20 text-right text-lg font-black text-emerald-400 bg-slate-950/50 border border-white/10 rounded-lg p-2 px-3 shadow-[0_0_15px_rgba(52,211,153,0.1)]">
-                                {team.score || 0}
-                             </div>
-                          </div>
-                        </td>
+                        {scoringEnabled && (
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-end gap-3">
+                               <div className="w-20 text-right text-lg font-black text-emerald-400 bg-slate-950/50 border border-white/10 rounded-lg p-2 px-3 shadow-[0_0_15px_rgba(52,211,153,0.1)]">
+                                  {team.score || 0}
+                                </div>
+                            </div>
+                          </td>
+                        )}
 
                       </tr>
                     ))}

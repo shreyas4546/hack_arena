@@ -38,4 +38,7 @@ next-env.d.ts
 # firebase
 .firebase
 
+# scratch & test artifacts
+scratch/
+
 
